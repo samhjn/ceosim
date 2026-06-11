@@ -19,173 +19,1321 @@
 
 const { useState } = React;
 
-const C = {
-  bg: "#0B1020", panel: "#121A2F", panel2: "#0E1524", line: "#22304F",
-  txt: "#E9E6DC", dim: "#8A93A8", up: "#FF5D5D", down: "#2EBD85", gold: "#E3B341",
-};
-const mono = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
-const rnd = Math.random;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const fmt = (v) => Math.abs(v) >= 10000 ? (v / 10000).toFixed(2) + "亿" : Math.round(v) + "万";
-
+/* ====================== 数据定义 ====================== */
+// 赛道:heat=融资热度基准 comp=竞争基准 hire=招聘难度基准 coef=收入/估值系数 burn=烧钱率 fee=入场费(万) repReq=声望门槛
 const TRACKS = [
-  { id: "ai", cat: "科技互联网", name: "AI大模型", icon: "🧠", heat: 90, comp: 80, hire: 85, coef: 1.25, burn: 90, fee: 800, repReq: 20, desc: "融资最热,人才最贵,巨头环伺" },
-  { id: "saas", cat: "科技互联网", name: "企业SaaS", icon: "🗂️", heat: 55, comp: 50, hire: 50, coef: 1.0, burn: 35, fee: 300, repReq: 0, desc: "现金流稳健,增长缓慢" },
-  { id: "social", cat: "科技互联网", name: "短视频社交", icon: "📡", heat: 55, comp: 90, hire: 40, coef: 1.1, burn: 100, fee: 500, repReq: 10, desc: "流量黑洞,烧钱换增长" },
-  { id: "game", cat: "科技互联网", name: "游戏娱乐", icon: "🎮", heat: 40, comp: 65, hire: 45, coef: 1.3, burn: 50, fee: 400, repReq: 0, desc: "版号即命门,爆款即印钞" },
-  { id: "fin", cat: "科技互联网", name: "金融科技", icon: "💳", heat: 50, comp: 55, hire: 60, coef: 1.2, burn: 55, fee: 600, repReq: 30, desc: "牌照与合规,刀尖上跳舞" },
-  { id: "edu", cat: "科技互联网", name: "在线教育", icon: "📚", heat: 30, comp: 70, hire: 45, coef: 1.05, burn: 60, fee: 350, repReq: 0, desc: "政策敏感,口碑是慢生意" },
-  { id: "chip", cat: "硬科技制造", name: "半导体芯片", icon: "🪨", heat: 85, comp: 70, hire: 95, coef: 1.5, burn: 100, fee: 1200, repReq: 35, desc: "国产替代浪潮,十年磨一芯" },
-  { id: "hw", cat: "硬科技制造", name: "消费硬件", icon: "📱", heat: 50, comp: 70, hire: 55, coef: 1.1, burn: 60, fee: 500, repReq: 10, desc: "供应链为王,爆款定生死" },
-  { id: "ev", cat: "硬科技制造", name: "新能源车", icon: "🔋", heat: 70, comp: 85, hire: 60, coef: 1.4, burn: 120, fee: 1500, repReq: 40, desc: "重资产豪赌,赢家通吃" },
-  { id: "robot", cat: "硬科技制造", name: "机器人", icon: "🦾", heat: 75, comp: 60, hire: 80, coef: 1.3, burn: 85, fee: 900, repReq: 20, desc: "具身智能风口,落地是关键" },
-  { id: "bio", cat: "硬科技制造", name: "生物医药", icon: "🧬", heat: 60, comp: 40, hire: 90, coef: 1.6, burn: 80, fee: 1000, repReq: 30, desc: "十年磨一药,成则连城" },
-  { id: "retail", cat: "大消费", name: "消费零售", icon: "🏪", heat: 35, comp: 70, hire: 30, coef: 0.85, burn: 55, fee: 400, repReq: 0, desc: "薄利多销,规模与周转定胜负" },
-  { id: "drink", cat: "大消费", name: "瓶装饮料", icon: "🧃", heat: 30, comp: 75, hire: 25, coef: 0.9, burn: 40, fee: 350, repReq: 0, desc: "渠道为王,货架就是战场" },
-  { id: "food", cat: "大消费", name: "连锁餐饮", icon: "🍜", heat: 40, comp: 80, hire: 35, coef: 0.95, burn: 50, fee: 300, repReq: 0, desc: "单店模型跑通,就疯狂复制" },
-  { id: "fashion", cat: "大消费", name: "时尚快消", icon: "👟", heat: 35, comp: 85, hire: 40, coef: 1.0, burn: 60, fee: 400, repReq: 10, desc: "潮起潮落,库存是生死线" },
-  { id: "cross", cat: "大消费", name: "跨境电商", icon: "🛳️", heat: 45, comp: 75, hire: 35, coef: 0.9, burn: 45, fee: 300, repReq: 0, desc: "门槛低内卷重,周转要快" },
-  { id: "logi", cat: "重资产周期", name: "物流运输", icon: "🚚", heat: 45, comp: 65, hire: 30, coef: 0.9, burn: 70, fee: 600, repReq: 10, desc: "重资产织网,规模即壁垒" },
-  { id: "air", cat: "重资产周期", name: "航空公司", icon: "✈️", heat: 35, comp: 60, hire: 55, coef: 1.1, burn: 150, fee: 2000, repReq: 50, desc: "周期之王,油价汇率定生死" },
-  { id: "estate", cat: "重资产周期", name: "房地产", icon: "🏗️", heat: 25, comp: 55, hire: 35, coef: 1.2, burn: 110, fee: 1800, repReq: 45, desc: "高杠杆高周转,政策即天命" },
-  { id: "travel", cat: "重资产周期", name: "文旅酒店", icon: "🏝️", heat: 40, comp: 60, hire: 30, coef: 1.0, burn: 65, fee: 500, repReq: 10, desc: "体验为王,旺季淡季冰火两重天" },
+  // 科技互联网
+  { id: "ai",     cat: "科技互联网", name: "AI大模型",   icon: "🧠", heat: 90, comp: 80, hire: 85, coef: 1.25, burn: 90,  fee: 800,  repReq: 20, desc: "融资最热,人才最贵,巨头环伺" },
+  { id: "saas",   cat: "科技互联网", name: "企业SaaS",   icon: "🗂️", heat: 55, comp: 50, hire: 50, coef: 1.0,  burn: 35,  fee: 300,  repReq: 0,  desc: "现金流稳健,增长缓慢" },
+  { id: "social", cat: "科技互联网", name: "短视频社交", icon: "📡", heat: 55, comp: 90, hire: 40, coef: 1.1,  burn: 100, fee: 500,  repReq: 10, desc: "流量黑洞,烧钱换增长" },
+  { id: "game",   cat: "科技互联网", name: "游戏娱乐",   icon: "🎮", heat: 40, comp: 65, hire: 45, coef: 1.3,  burn: 50,  fee: 400,  repReq: 0,  desc: "版号即命门,爆款即印钞" },
+  { id: "fin",    cat: "科技互联网", name: "金融科技",   icon: "💳", heat: 50, comp: 55, hire: 60, coef: 1.2,  burn: 55,  fee: 600,  repReq: 30, desc: "牌照与合规,刀尖上跳舞" },
+  { id: "edu",    cat: "科技互联网", name: "在线教育",   icon: "📚", heat: 30, comp: 70, hire: 45, coef: 1.05, burn: 60,  fee: 350,  repReq: 0,  desc: "政策敏感,口碑是慢生意" },
+  // 硬科技制造
+  { id: "chip",   cat: "硬科技制造", name: "半导体芯片", icon: "🪨", heat: 85, comp: 70, hire: 95, coef: 1.5,  burn: 100, fee: 1200, repReq: 35, desc: "国产替代浪潮,十年磨一芯" },
+  { id: "hw",     cat: "硬科技制造", name: "消费硬件",   icon: "📱", heat: 50, comp: 70, hire: 55, coef: 1.1,  burn: 60,  fee: 500,  repReq: 10, desc: "供应链为王,爆款定生死" },
+  { id: "ev",     cat: "硬科技制造", name: "新能源车",   icon: "🔋", heat: 70, comp: 85, hire: 60, coef: 1.4,  burn: 120, fee: 1500, repReq: 40, desc: "重资产豪赌,赢家通吃" },
+  { id: "robot",  cat: "硬科技制造", name: "机器人",     icon: "🦾", heat: 75, comp: 60, hire: 80, coef: 1.3,  burn: 85,  fee: 900,  repReq: 20, desc: "具身智能风口,落地是关键" },
+  { id: "bio",    cat: "硬科技制造", name: "生物医药",   icon: "🧬", heat: 60, comp: 40, hire: 90, coef: 1.6,  burn: 80,  fee: 1000, repReq: 30, desc: "十年磨一药,成则连城" },
+  // 大消费
+  { id: "retail", cat: "大消费", name: "消费零售",   icon: "🏪", heat: 35, comp: 70, hire: 30, coef: 0.85, burn: 55,  fee: 400,  repReq: 0,  desc: "薄利多销,规模与周转定胜负" },
+  { id: "drink",  cat: "大消费", name: "瓶装饮料",   icon: "🧃", heat: 30, comp: 75, hire: 25, coef: 0.9,  burn: 40,  fee: 350,  repReq: 0,  desc: "渠道为王,货架就是战场" },
+  { id: "food",   cat: "大消费", name: "连锁餐饮",   icon: "🍜", heat: 40, comp: 80, hire: 35, coef: 0.95, burn: 50,  fee: 300,  repReq: 0,  desc: "单店模型跑通,就疯狂复制" },
+  { id: "fashion",cat: "大消费", name: "时尚快消",   icon: "👟", heat: 35, comp: 85, hire: 40, coef: 1.0,  burn: 60,  fee: 400,  repReq: 10, desc: "潮起潮落,库存是生死线" },
+  { id: "cross",  cat: "大消费", name: "跨境电商",   icon: "🛳️", heat: 45, comp: 75, hire: 35, coef: 0.9,  burn: 45,  fee: 300,  repReq: 0,  desc: "门槛低内卷重,周转要快" },
+  // 重资产周期
+  { id: "logi",   cat: "重资产周期", name: "物流运输",   icon: "🚚", heat: 45, comp: 65, hire: 30, coef: 0.9,  burn: 70,  fee: 600,  repReq: 10, desc: "重资产织网,规模即壁垒" },
+  { id: "air",    cat: "重资产周期", name: "航空公司",   icon: "✈️", heat: 35, comp: 60, hire: 55, coef: 1.1,  burn: 150, fee: 2000, repReq: 50, desc: "周期之王,油价汇率定生死" },
+  { id: "estate", cat: "重资产周期", name: "房地产",     icon: "🏗️", heat: 25, comp: 55, hire: 35, coef: 1.2,  burn: 110, fee: 1800, repReq: 45, desc: "高杠杆高周转,政策即天命" },
+  { id: "travel", cat: "重资产周期", name: "文旅酒店",   icon: "🏝️", heat: 40, comp: 60, hire: 30, coef: 1.0,  burn: 65,  fee: 500,  repReq: 10, desc: "体验为王,旺季淡季冰火两重天" },
 ];
 
-const SYN = [["ai","saas"],["ai","robot"],["ai","bio"],["ai","social"],["robot","ev"],["fin","cross"],["game","social"],["saas","fin"],["hw","ev"],["retail","drink"],["retail","fashion"],["drink","food"],["fashion","social"],["fashion","cross"],["food","social"],["retail","saas"],["chip","ai"],["chip","hw"],["chip","ev"],["logi","cross"],["logi","retail"],["air","logi"],["air","travel"],["estate","travel"],["estate","retail"],["travel","social"],["edu","ai"]];
-const DRAG = [["game","saas"],["fin","social"],["bio","social"],["ev","game"],["retail","social"],["drink","bio"],["estate","fin"],["edu","game"]];
+// 协同(同时在场则互相增强收入与研发)与拖累(互相消耗)
+const SYN = [
+  ["ai", "saas"], ["ai", "robot"], ["ai", "bio"], ["ai", "social"],
+  ["robot", "ev"], ["fin", "cross"], ["game", "social"], ["saas", "fin"], ["hw", "ev"],
+  ["retail", "drink"], ["retail", "fashion"], ["drink", "food"],
+  ["fashion", "social"], ["fashion", "cross"], ["food", "social"], ["retail", "saas"],
+  ["chip", "ai"], ["chip", "hw"], ["chip", "ev"],
+  ["logi", "cross"], ["logi", "retail"], ["air", "logi"], ["air", "travel"],
+  ["estate", "travel"], ["estate", "retail"], ["travel", "social"], ["edu", "ai"],
+];
+const DRAG = [
+  ["game", "saas"], ["fin", "social"], ["bio", "social"], ["ev", "game"],
+  ["retail", "social"], ["drink", "bio"], ["estate", "fin"], ["edu", "game"],
+];
+const SYN_TXT = { ai: "AI赋能", robot: "软硬协同", ev: "供应链共享", fin: "支付打通", social: "流量互导", saas: "客户复用", bio: "AI制药", cross: "通道复用", game: "内容联动", hw: "硬件协同", retail: "渠道共享", drink: "货架协同", food: "门店联动", fashion: "种草带货" };
+
+// 事件:type g利好/b利空 | fx: cash现金 rep声望 prod产品力 comp竞争 fund融资环境 hire招聘难度 talent人才增减
+// cross: [赛道id, 影响] 跨赛道传导
+const EVENTS = {
+  ai: [
+    { n: "政府算力补贴落地", t: "g", fx: { fund: 10, cash: 300 } },
+    { n: "开源模型免费冲击", t: "b", fx: { comp: 12 } },
+    { n: "巨头掀起API价格战", t: "b", fx: { comp: 15, fund: -8 } },
+    { n: "团队论文顶会出圈", t: "g", fx: { prod: 8, rep: 5 } },
+    { n: "GPU租金暴涨", t: "b", fx: { cash: -260 } },
+    { n: "生成内容安全事故", t: "b", fx: { rep: -8, comp: 5 } },
+    { n: "核心研究员被天价挖走", t: "b", fx: { talent: -1, hire: 8 } },
+    { n: "行业融资热潮重启", t: "g", fx: { fund: 18 } },
+    { n: "企业AI预算集体翻倍", t: "g", fx: { prod: 5 }, cross: ["saas", { fund: 10 }] },
+    { n: "大模型备案新规收紧", t: "b", fx: { fund: -10 }, cross: ["fin", { fund: -5 }] },
+  ],
+  saas: [
+    { n: "标杆客户续约三年", t: "g", fx: { cash: 200, rep: 4 } },
+    { n: "客户预算冻结潮", t: "b", fx: { cash: -150, fund: -10 } },
+    { n: "行业展会现场爆单", t: "g", fx: { prod: 6, cash: 120 } },
+    { n: "竞品恶意低价竞标", t: "b", fx: { comp: 12 } },
+    { n: "大客户定制需求清晰化", t: "g", fx: { prod: 8 } },
+    { n: "核心销售带客户出走", t: "b", fx: { talent: -1, cash: -100 } },
+    { n: "SaaS出海窗口开启", t: "g", fx: { fund: 6 }, cross: ["cross", { fund: 8 }] },
+    { n: "客户数据泄露事故", t: "b", fx: { rep: -7, hire: 5 } },
+    { n: "私有化部署大单落地", t: "g", fx: { cash: 260 } },
+    { n: "巨头免费套件入场", t: "b", fx: { comp: 15, fund: -6 } },
+  ],
+  hw: [
+    { n: "供应链芯片缺货", t: "b", fx: { cash: -200, prod: -3 } },
+    { n: "爆款单品意外出圈", t: "g", fx: { rep: 6, cash: 250, prod: 5 } },
+    { n: "海外认证受阻", t: "b", fx: { fund: -8 } },
+    { n: "代工厂良率突破", t: "g", fx: { prod: 7 } },
+    { n: "渠道压货引发退货潮", t: "b", fx: { cash: -220 } },
+    { n: "竞品发布会全面碾压", t: "b", fx: { comp: 12, rep: -3 } },
+    { n: "上游成本周期性下降", t: "g", fx: { cash: 150 } },
+    { n: "众筹平台首页推荐", t: "g", fx: { fund: 10, rep: 4 } },
+    { n: "专利诉讼缠身", t: "b", fx: { cash: -180, fund: -5 } },
+    { n: "与新能源车厂联名", t: "g", fx: { prod: 4 }, cross: ["ev", { prod: 4 }] },
+  ],
+  ev: [
+    { n: "价格战进入白热化", t: "b", fx: { comp: 18, fund: -8 } },
+    { n: "地方产业基金注资", t: "g", fx: { cash: 800, fund: 8 } },
+    { n: "电池原材料涨价", t: "b", fx: { cash: -400 } },
+    { n: "充电网络合作达成", t: "g", fx: { prod: 8 } },
+    { n: "批次质量召回事件", t: "b", fx: { rep: -10, cash: -300 } },
+    { n: "海外市场大额订单", t: "g", fx: { cash: 500, rep: 5 } },
+    { n: "购置补贴加速退坡", t: "b", fx: { fund: -12 } },
+    { n: "智驾路测牌照获批", t: "g", fx: { prod: 8 }, cross: ["ai", { fund: 6 }] },
+    { n: "产能爬坡严重受阻", t: "b", fx: { prod: -5, cash: -200 } },
+    { n: "头部车企降维打击", t: "b", fx: { comp: 15 } },
+  ],
+  bio: [
+    { n: "临床II期数据亮眼", t: "g", fx: { prod: 12, fund: 12, rep: 6 } },
+    { n: "关键临床试验受挫", t: "b", fx: { prod: -8, fund: -10, rep: -5 } },
+    { n: "License-out授权成交", t: "g", fx: { cash: 900 } },
+    { n: "审评流程意外延长", t: "b", fx: { fund: -8 } },
+    { n: "海归首席科学家加盟", t: "g", fx: { talent: 1, prod: 5 } },
+    { n: "实验室合规整改", t: "b", fx: { cash: -200 } },
+    { n: "罕见病绿色通道获批", t: "g", fx: { fund: 10 } },
+    { n: "同靶点竞品抢先报批", t: "b", fx: { comp: 12 } },
+    { n: "医保谈判预期向好", t: "g", fx: { fund: 8 } },
+    { n: "遭遇学术造假质疑", t: "b", fx: { rep: -9, fund: -8 } },
+  ],
+  cross: [
+    { n: "平台无差别封号潮", t: "b", fx: { cash: -200, rep: -4 } },
+    { n: "黑五大促全线爆单", t: "g", fx: { cash: 300 } },
+    { n: "海运运费暴涨", t: "b", fx: { cash: -180 } },
+    { n: "新兴市场流量红利", t: "g", fx: { fund: 8, prod: 5 } },
+    { n: "目的国关税突变", t: "b", fx: { fund: -10, cash: -150 } },
+    { n: "海外仓网络成型", t: "g", fx: { prod: 7 } },
+    { n: "汇率剧烈波动", t: "b", fx: { cash: -120 } },
+    { n: "本土化团队跑通", t: "g", fx: { talent: 1 } },
+    { n: "平台算法改版流量腰斩", t: "b", fx: { prod: -6 } },
+    { n: "跨境支付通道打通", t: "g", fx: { prod: 4 }, cross: ["fin", { fund: 8 }] },
+  ],
+  game: [
+    { n: "版号审批阶段性收紧", t: "b", fx: { fund: -12, prod: -4 } },
+    { n: "新版号顺利下发", t: "g", fx: { fund: 10, prod: 6 } },
+    { n: "新游上线即成爆款", t: "g", fx: { cash: 400, rep: 6 } },
+    { n: "买量成本持续飙升", t: "b", fx: { cash: -220 } },
+    { n: "防沉迷舆论风波", t: "b", fx: { rep: -7, fund: -5 } },
+    { n: "顶级电竞赛事冠名", t: "g", fx: { rep: 6 } },
+    { n: "核心制作人出走创业", t: "b", fx: { talent: -1, prod: -5 } },
+    { n: "海外发行超出预期", t: "g", fx: { cash: 300 }, cross: ["cross", { fund: 5 }] },
+    { n: "玩法抄袭争议发酵", t: "b", fx: { rep: -6 } },
+    { n: "经典IP联动刷屏", t: "g", fx: { rep: 5, prod: 5 } },
+  ],
+  fin: [
+    { n: "被监管部门约谈", t: "b", fx: { rep: -6, fund: -10 } },
+    { n: "核心持牌资质获批", t: "g", fx: { fund: 15, rep: 5 } },
+    { n: "坏账率显著抬头", t: "b", fx: { cash: -260 } },
+    { n: "银行联合风控合作", t: "g", fx: { prod: 8 } },
+    { n: "数据合规专项检查", t: "b", fx: { cash: -180, hire: 5 } },
+    { n: "跨境支付牌照落地", t: "g", fx: { prod: 5 }, cross: ["cross", { prod: 5 }] },
+    { n: "利率政策突然收紧", t: "b", fx: { fund: -8 } },
+    { n: "机构资金批量接入", t: "g", fx: { cash: 400 } },
+    { n: "遭遇黑产集中攻击", t: "b", fx: { rep: -5, cash: -150 } },
+    { n: "入选监管沙盒试点", t: "g", fx: { fund: 12 } },
+  ],
+  robot: [
+    { n: "智能工厂大单落地", t: "g", fx: { cash: 350, prod: 5 } },
+    { n: "核心零部件断供", t: "b", fx: { prod: -5, cash: -150 } },
+    { n: "人形机器人风口骤起", t: "g", fx: { fund: 15 } },
+    { n: "演示事故视频疯传", t: "b", fx: { rep: -8 } },
+    { n: "与车厂共建产线", t: "g", fx: { prod: 6 }, cross: ["ev", { prod: 5 }] },
+    { n: "高校人才争夺白热化", t: "b", fx: { hire: 10 } },
+    { n: "具身智能技术突破", t: "g", fx: { prod: 10 }, cross: ["ai", { prod: 4 }] },
+    { n: "客户回款周期拉长", t: "b", fx: { cash: -200 } },
+    { n: "政府智造补贴到账", t: "g", fx: { cash: 300, fund: 6 } },
+    { n: "海外巨头开源方案", t: "b", fx: { comp: 12 } },
+  ],
+  social: [
+    { n: "现象级话题引爆", t: "g", fx: { rep: 8, prod: 6 } },
+    { n: "买量大战疯狂烧钱", t: "b", fx: { cash: -300 } },
+    { n: "内容审核违规处罚", t: "b", fx: { rep: -7, fund: -8 } },
+    { n: "推荐算法留存突破", t: "g", fx: { prod: 9 } },
+    { n: "巨头像素级复制功能", t: "b", fx: { comp: 15 } },
+    { n: "广告变现模型跑通", t: "g", fx: { cash: 350 } },
+    { n: "用户增长触及天花板", t: "b", fx: { prod: -5, fund: -6 } },
+    { n: "出海版本意外爆发", t: "g", fx: { cash: 250 }, cross: ["cross", { fund: 6 }] },
+    { n: "头部主播集体出走", t: "b", fx: { talent: -1, rep: -4 } },
+    { n: "未成年保护舆情", t: "b", fx: { rep: -6 }, cross: ["game", { fund: -5 }] },
+  ],
+  retail: [
+    { n: "会员体系复购飙升", t: "g", fx: { prod: 7 } },
+    { n: "核心商圈租金大涨", t: "b", fx: { cash: -180 } },
+    { n: "县域加盟咨询爆满", t: "g", fx: { share: 6 } },
+    { n: "直播电商分流客流", t: "b", fx: { prod: -5 }, cross: ["social", { fund: 4 }] },
+    { n: "自有品牌毛利改善", t: "g", fx: { cash: 200 } },
+    { n: "换季库存积压甩卖", t: "b", fx: { cash: -220 } },
+    { n: "供应链集采谈判成功", t: "g", fx: { cash: 150, prod: 3 } },
+    { n: "商超巨头贴身开店", t: "b", fx: { comp: 14 } },
+    { n: "即时零售网络接入", t: "g", fx: { prod: 6 }, cross: ["saas", { fund: 5 }] },
+    { n: "门店食安抽检风波", t: "b", fx: { rep: -6 } },
+  ],
+  drink: [
+    { n: "大单品全国铺货完成", t: "g", fx: { share: 8 } },
+    { n: "原糖与包材集体涨价", t: "b", fx: { cash: -160 } },
+    { n: "联名款一夜售罄", t: "g", fx: { rep: 6, cash: 200 } },
+    { n: "经销商窜货乱价", t: "b", fx: { share: -5, comp: 8 } },
+    { n: "冰柜投放战告捷", t: "g", fx: { share: 6 } },
+    { n: "含糖健康舆论发酵", t: "b", fx: { fund: -8, rep: -4 } },
+    { n: "无糖新品踩中风口", t: "g", fx: { prod: 9 } },
+    { n: "巨头买断商超货架", t: "b", fx: { comp: 15 } },
+    { n: "餐饮渠道大客户签约", t: "g", fx: { cash: 250 }, cross: ["food", { prod: 4 }] },
+    { n: "批次质量召回", t: "b", fx: { rep: -9, cash: -200 } },
+  ],
+  food: [
+    { n: "单店模型彻底跑通", t: "g", fx: { prod: 8 } },
+    { n: "后厨卫生事件曝光", t: "b", fx: { rep: -10, cash: -150 } },
+    { n: "加盟申请排起长队", t: "g", fx: { share: 7, cash: 200 } },
+    { n: "外卖平台佣金上调", t: "b", fx: { cash: -180 } },
+    { n: "探店视频意外爆火", t: "g", fx: { rep: 6 }, cross: ["social", { prod: 4 }] },
+    { n: "核心商圈房租暴涨", t: "b", fx: { cash: -160 } },
+    { n: "中央厨房正式投产", t: "g", fx: { prod: 7 } },
+    { n: "同品类掀起价格战", t: "b", fx: { comp: 14 } },
+    { n: "供应链溯源体系达标", t: "g", fx: { rep: 5, fund: 6 } },
+    { n: "明星店长集体被挖", t: "b", fx: { talent: -1, hire: 8 } },
+  ],
+  fashion: [
+    { n: "爆款单品全网断货", t: "g", fx: { cash: 300, rep: 5 } },
+    { n: "季末库存深度打折", t: "b", fx: { cash: -250 } },
+    { n: "顶流明星同款带货", t: "g", fx: { rep: 7, share: 5 } },
+    { n: "抄袭大牌设计争议", t: "b", fx: { rep: -7 } },
+    { n: "柔性供应链上线", t: "g", fx: { prod: 8 } },
+    { n: "潮流风向突然转变", t: "b", fx: { prod: -7 } },
+    { n: "快时尚出海爆单", t: "g", fx: { cash: 250 }, cross: ["cross", { fund: 6 }] },
+    { n: "直播间退货率失控", t: "b", fx: { cash: -180 } },
+    { n: "联名设计师系列出圈", t: "g", fx: { prod: 6, rep: 4 } },
+    { n: "环保与劳工舆论压力", t: "b", fx: { rep: -5, fund: -6 } },
+  ],
+  logi: [
+    { n: "全国干线网络成型", t: "g", fx: { share: 7 } },
+    { n: "油价持续上涨", t: "b", fx: { cash: -200 } },
+    { n: "电商大促件量爆仓", t: "g", fx: { cash: 300 } },
+    { n: "单票价格战恶化", t: "b", fx: { comp: 14, cash: -150 } },
+    { n: "无人配送试点获批", t: "g", fx: { prod: 8 }, cross: ["robot", { fund: 6 }] },
+    { n: "网点加盟商集体抗议", t: "b", fx: { rep: -6, share: -4 } },
+    { n: "冷链仓配能力达标", t: "g", fx: { prod: 6 }, cross: ["food", { prod: 4 }] },
+    { n: "燃油附加费政策调整", t: "b", fx: { cash: -120 } },
+    { n: "跨境物流专线开通", t: "g", fx: { prod: 5 }, cross: ["cross", { prod: 4 }] },
+    { n: "骑手社保新规增负", t: "b", fx: { cash: -180 } },
+  ],
+  air: [
+    { n: "油价汇率双杀", t: "b", fx: { cash: -500 } },
+    { n: "出行需求报复性反弹", t: "g", fx: { cash: 600, share: 5 } },
+    { n: "安全事件深度调查", t: "b", fx: { rep: -12, fund: -10 } },
+    { n: "黄金航线时刻获批", t: "g", fx: { share: 8 } },
+    { n: "机队适航检修停场", t: "b", fx: { cash: -300, prod: -4 } },
+    { n: "两舱产品全面升级", t: "g", fx: { prod: 8 } },
+    { n: "高铁分流主干航线", t: "b", fx: { comp: 12 } },
+    { n: "国际航权大幅开放", t: "g", fx: { fund: 10 }, cross: ["travel", { fund: 6 }] },
+    { n: "飞行员短缺薪资暴涨", t: "b", fx: { hire: 10, cash: -200 } },
+    { n: "货运包机大单落地", t: "g", fx: { cash: 400 }, cross: ["logi", { fund: 5 }] },
+  ],
+  estate: [
+    { n: "限购限贷政策加码", t: "b", fx: { fund: -15 } },
+    { n: "地方松绑刺激出台", t: "g", fx: { fund: 12, cash: 300 } },
+    { n: "项目去化率暴跌", t: "b", fx: { cash: -400 } },
+    { n: "地王项目溢价售罄", t: "g", fx: { cash: 800 } },
+    { n: "高杠杆融资全面收紧", t: "b", fx: { fund: -12 }, cross: ["fin", { fund: -6 }] },
+    { n: "城市更新项目中标", t: "g", fx: { prod: 8 } },
+    { n: "交付质量业主维权", t: "b", fx: { rep: -8 } },
+    { n: "商业综合体满租开业", t: "g", fx: { share: 6 }, cross: ["retail", { fund: 5 }] },
+    { n: "土地增值税集中清算", t: "b", fx: { cash: -300 } },
+    { n: "代建轻资产模式跑通", t: "g", fx: { prod: 7, fund: 6 } },
+  ],
+  chip: [
+    { n: "流片一次成功", t: "g", fx: { prod: 12, rep: 6 } },
+    { n: "流片失败推倒重来", t: "b", fx: { prod: -6, cash: -400 } },
+    { n: "国产替代大单落地", t: "g", fx: { cash: 500, share: 6 } },
+    { n: "设备出口管制升级", t: "b", fx: { fund: -10, prod: -4 } },
+    { n: "产业大基金注资", t: "g", fx: { cash: 1000, fund: 10 } },
+    { n: "国际大厂降价倾销", t: "b", fx: { comp: 15 } },
+    { n: "车规级认证通过", t: "g", fx: { prod: 8 }, cross: ["ev", { prod: 4 }] },
+    { n: "核心团队竞业纠纷", t: "b", fx: { talent: -1, cash: -200 } },
+    { n: "先进制程产能锁定", t: "g", fx: { prod: 7 }, cross: ["ai", { fund: 6 }] },
+    { n: "行业周期下行去库存", t: "b", fx: { fund: -12, cash: -200 } },
+  ],
+  travel: [
+    { n: "网红城市泼天流量", t: "g", fx: { cash: 300, share: 6 } },
+    { n: "极端天气毁掉旺季", t: "b", fx: { cash: -250 } },
+    { n: "高端度假品牌出圈", t: "g", fx: { rep: 6, prod: 6 } },
+    { n: "OTA平台佣金挤压", t: "b", fx: { cash: -150 } },
+    { n: "演唱会经济带火住宿", t: "g", fx: { cash: 250 }, cross: ["social", { prod: 3 }] },
+    { n: "旅游投诉舆情发酵", t: "b", fx: { rep: -7 } },
+    { n: "轻资产委管签约潮", t: "g", fx: { share: 7 } },
+    { n: "淡季入住率崩盘", t: "b", fx: { cash: -180 } },
+    { n: "入境游政策大利好", t: "g", fx: { fund: 10 }, cross: ["air", { fund: 6 }] },
+    { n: "同质化民宿涌入", t: "b", fx: { comp: 13 } },
+  ],
+  edu: [
+    { n: "监管政策突然收紧", t: "b", fx: { fund: -15, prod: -5 } },
+    { n: "素质教育牌照获批", t: "g", fx: { fund: 10, rep: 5 } },
+    { n: "续费率创历史新高", t: "g", fx: { cash: 250, prod: 6 } },
+    { n: "获客成本全面失控", t: "b", fx: { cash: -220 } },
+    { n: "AI个性化学习上线", t: "g", fx: { prod: 9 }, cross: ["ai", { fund: 4 }] },
+    { n: "退费纠纷集中爆发", t: "b", fx: { rep: -8, cash: -150 } },
+    { n: "出海产品意外走红", t: "g", fx: { cash: 200 }, cross: ["cross", { fund: 5 }] },
+    { n: "头部名师被挖角", t: "b", fx: { talent: -1, prod: -4 } },
+    { n: "转型职业教育成功", t: "g", fx: { fund: 8, share: 5 } },
+    { n: "虚假宣传被点名", t: "b", fx: { rep: -7, fund: -6 } },
+  ],
+};
+
+// 黑天鹅:高盈利/政策敏感赛道的毁灭性尾部风险(每季独立判定)
+// kill: "prod"产品归零 | "share"市场归零 | "both"双归零;高洞察有机会嗅到风声减损为腰斩
+const BLACKSWAN = {
+  game:   { p: 0.020, n: "未成年人游戏禁令落地", kill: "both",  rep: -10, txt: "一纸新政,全品类停服整改。版号时代教过的课,又上了一遍。" },
+  edu:    { p: 0.025, n: "校外培训一刀切", kill: "both",  rep: -8,  txt: "周末的课表一夜清空,行业整体转入历史。" },
+  fin:    { p: 0.020, n: "牌照吊销与立案调查", kill: "both",  rep: -15, cash: -300, txt: "合规的钢丝,终究没走完。" },
+  bio:    { p: 0.025, n: "III期临床彻底失败", kill: "prod",  rep: -10, txt: "八年管线,终点前最后一组数据宣判了一切。" },
+  social: { p: 0.015, n: "全网下架无限期整改", kill: "share", rep: -8,  txt: "应用商店搜索结果为空的那天,增长曲线归了零。" },
+  cross:  { p: 0.015, n: "平台永久封店", kill: "share", cash: -200, txt: "账号、店铺、待结算货款,一并冻结。" },
+  estate: { p: 0.020, n: "资金链暴雷连环违约", kill: "share", cash: -600, rep: -10, txt: "高周转的飞轮,在第一笔违约处崩断。" },
+  drink:  { p: 0.010, n: "致命质量安全事故", kill: "both",  rep: -15, txt: "一个批次,毁掉二十年也建不回的信任。" },
+};
+
+
+/* ====================== 经济模型 ====================== */
+// 产业带基因:opex=每季规模维持系数 slope=规模早期效率(投1块钱形成多少有效规模)
 const BAND = {
   "科技互联网": { tag: "人才驱动", opex: 0.022, slope: 1.2, pers: 0.70, book: 0.08, note: "爬坡较快,人贵" },
   "硬科技制造": { tag: "资本驱动", opex: 0.030, slope: 0.7, pers: 0.50, book: 0.30, note: "前期投入大半沉没,天花板最高" },
-  "大消费": { tag: "渠道驱动", opex: 0.018, slope: 1.6, pers: 0.85, book: 0.10, note: "见效最快,但天花板矮——除非破界" },
+  "大消费":     { tag: "渠道驱动", opex: 0.018, slope: 1.6, pers: 0.85, book: 0.10, note: "见效最快,但天花板矮——除非破界" },
   "重资产周期": { tag: "规模驱动", opex: 0.035, slope: 0.9, pers: 0.60, book: 0.50, note: "重资产即账面:估值=资产+利润,周期定价" },
 };
+// 赛道经济参数:cap=有效规模天花板 mkt=行业季度盘子(万/季) M0=对手合计有效规模 amp=周期振幅 ad=广告效率(份额收益∝投放/盘子×ad,渗透越高递减)
 const ECON = {
-  ai:{cap:25000,mkt:5700,M0:14000,amp:.35,ad:.28}, saas:{cap:8000,mkt:1550,M0:4000,amp:.10,ad:.35}, social:{cap:16000,mkt:5250,M0:16000,amp:.30,ad:.62}, game:{cap:12000,mkt:3500,M0:8000,amp:.50,ad:.65}, fin:{cap:14000,mkt:2850,M0:7000,amp:.40,ad:.40}, edu:{cap:6500,mkt:1750,M0:5000,amp:.30,ad:.45},
-  chip:{cap:35000,mkt:15650,M0:40000,amp:.85,ad:.10}, hw:{cap:12000,mkt:4500,M0:9000,amp:.50,ad:.30}, ev:{cap:30000,mkt:13500,M0:30000,amp:.70,ad:.35}, robot:{cap:16000,mkt:4100,M0:6000,amp:.40,ad:.15}, bio:{cap:22000,mkt:6000,M0:7000,amp:.50,ad:.10},
-  retail:{cap:8000,mkt:2250,M0:9000,amp:.30,ad:.48}, drink:{cap:4000,mkt:1350,M0:5500,amp:.20,ad:.50}, food:{cap:5000,mkt:1550,M0:6500,amp:.30,ad:.48}, fashion:{cap:5500,mkt:1750,M0:7000,amp:.60,ad:.55}, cross:{cap:7000,mkt:1900,M0:7000,amp:.50,ad:.45},
-  logi:{cap:26000,mkt:6250,M0:12000,amp:.60,ad:.22}, air:{cap:35000,mkt:9700,M0:30000,amp:.95,ad:.25}, estate:{cap:45000,mkt:12200,M0:25000,amp:.85,ad:.40}, travel:{cap:11000,mkt:3250,M0:7000,amp:.70,ad:.45},
+  ai:     { cap: 25000, mkt: 5700,  M0: 14000, amp: 0.35, ad: 0.28 },
+  saas:   { cap: 8000,  mkt: 1550,  M0: 4000,  amp: 0.10, ad: 0.35 },
+  social: { cap: 16000, mkt: 5250,  M0: 16000, amp: 0.30, ad: 0.62 },
+  game:   { cap: 12000,  mkt: 3500,  M0: 8000,  amp: 0.50, ad: 0.65 },
+  fin:    { cap: 14000, mkt: 2850,  M0: 7000,  amp: 0.40, ad: 0.40 },
+  edu:    { cap: 6500,  mkt: 1750,  M0: 5000,  amp: 0.30, ad: 0.45 },
+  chip:   { cap: 35000, mkt: 15650, M0: 40000, amp: 0.85, ad: 0.10 },
+  hw:     { cap: 12000,  mkt: 4500,  M0: 9000,  amp: 0.50, ad: 0.30 },
+  ev:     { cap: 30000, mkt: 13500,  M0: 30000, amp: 0.70, ad: 0.35 },
+  robot:  { cap: 16000, mkt: 4100,  M0: 6000,  amp: 0.40, ad: 0.15 },
+  bio:    { cap: 22000, mkt: 6000,  M0: 7000,  amp: 0.50, ad: 0.10 },
+  retail: { cap: 8000,  mkt: 2250,  M0: 9000,  amp: 0.30, ad: 0.48 },
+  drink:  { cap: 4000,  mkt: 1350,  M0: 5500,  amp: 0.20, ad: 0.50 },
+  food:   { cap: 5000,  mkt: 1550,  M0: 6500,  amp: 0.30, ad: 0.48 },
+  fashion:{ cap: 5500,  mkt: 1750,  M0: 7000,  amp: 0.60, ad: 0.55 },
+  cross:  { cap: 7000,  mkt: 1900,  M0: 7000,  amp: 0.50, ad: 0.45 },
+  logi:   { cap: 26000, mkt: 6250,  M0: 12000, amp: 0.60, ad: 0.22 },
+  air:    { cap: 35000, mkt: 9700,  M0: 30000, amp: 0.95, ad: 0.25 },
+  estate: { cap: 45000, mkt: 12200, M0: 25000, amp: 0.85, ad: 0.40 },
+  travel: { cap: 11000,  mkt: 3250,  M0: 7000,  amp: 0.70, ad: 0.45 },
 };
+// 破界(品类革命):小赛道盈利且产品过硬,每季有小概率炸开天花板——新消费独角兽的剧本
+const BRK_CAP = 1.9, BRK_MKT = 1.6, BRK_MAX = 2;
+const BREAKABLE = (id) => ECON[id].cap <= 16000;
+const BRK_NAME = { "科技互联网": "平台跃迁:工具长成了生态", "硬科技制造": "技术代差:你把行业甩开了一个身位", "大消费": "品类革命:你创造了一个全新的细分蓝海", "重资产周期": "模式革命:轻重结合打开新空间" };
+const capOf = (id, t) => ECON[id].cap * Math.pow(BRK_CAP, t.brk || 0);
+const mktSizeOf = (id, t) => ECON[id].mkt * Math.pow(BRK_MKT, t.brk || 0);
+const HC_SCALE = 50;   // 每位核心人才折算规模(万)
+const WAGE_BASE = 30;  // 人才基础季薪(万),随赛道抢人难度上浮
+const MAX_HC = 8;
+
+// CEO 出身模板
 const ARCHETYPES = [
   { id: "tech", name: "技术大牛", icon: "⌨️", stats: { cha: 3, ins: 5, mgr: 4, dec: 3 }, cash: 2400, rep: 18, blurb: "洞察+2 管理+1 / 看得懂周期与需求,但融资要练" },
   { id: "serial", name: "连续创业者", icon: "🔥", stats: { cha: 5, ins: 3, mgr: 3, dec: 4 }, cash: 2000, rep: 32, blurb: "魅力+2 决断+1 / 会讲故事,裁起人来也不手软" },
   { id: "exec", name: "大厂高管", icon: "🏢", stats: { cha: 4, ins: 3, mgr: 5, dec: 3 }, cash: 2800, rep: 24, blurb: "管理+2 魅力+1 / 资源厚降本强,嗅觉稍钝" },
 ];
+
 const STAT_META = {
   cha: { name: "魅力", icon: "🎤", tip: "提升融资成功率与画饼效果" },
   ins: { name: "洞察", icon: "👁️", tip: "预判事件与周期、削弱利空、研发增效" },
   mgr: { name: "管理", icon: "🧭", tip: "行动点与赛道容量、招聘成功率、压低规模维持费" },
   dec: { name: "决断", icon: "✂️", tip: "裁员裁撤更体面、剪枝回收更多" },
 };
-const MAX_TURN = 40, HC_SCALE = 50, WAGE_BASE = 30, MAX_HC = 8;
-const EVENTS = [
-  ["g", "标杆客户爆单", { cash: 220, rep: 4, prod: 5 }],
-  ["g", "行业融资热潮重启", { fund: 12 }],
-  ["g", "核心人才加盟", { talent: 1, prod: 3 }],
-  ["g", "技术/供应链突破", { prod: 8, rep: 3 }],
-  ["b", "巨头价格战", { comp: 12, fund: -6 }],
-  ["b", "合规与舆情事故", { rep: -7, cash: -160 }],
-  ["b", "核心成员被挖走", { talent: -1, hire: 8 }],
-  ["b", "成本突然上涨", { cash: -220 }],
-];
-const BLACKSWAN = { game:.02, edu:.025, fin:.02, bio:.025, social:.015, cross:.015, estate:.02, drink:.01 };
 
-const defOf = (id) => TRACKS.find(x => x.id === id);
+const MAX_TURN = 40;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmt = (v) => (Math.abs(v) >= 10000 ? (v / 10000).toFixed(2) + "亿" : Math.round(v) + "万");
+const rnd = Math.random;
+
+/* ====================== 核心公式 ====================== */
+const defOf = (id) => TRACKS.find((x) => x.id === id);
 const bandOf = (id) => BAND[defOf(id).cat];
-const capOf = (id, t) => ECON[id].cap * Math.pow(1.9, t.brk || 0);
-const mktSizeOf = (id, t) => ECON[id].mkt * Math.pow(1.6, t.brk || 0);
-const wageOf = (t) => Math.round(WAGE_BASE * (.7 + t.hire / 100));
+const trancheOf = (id) => Math.round(defOf(id).fee * 0.45 / 50) * 50;
+const wageOf = (t) => Math.round(WAGE_BASE * (0.7 + t.hire / 100));
+// 规模 = 累计研发 + 累计营销 + 人力×折算
+const scaleOf = (t) => t.rd + t.mkt + t.hc * HC_SCALE;
+// 有效规模:边际递减,逼近天花板
+const effOf = (id, t) => { const c = capOf(id, t); return c * (1 - Math.exp(-scaleOf(t) * bandOf(id).slope / c)); };
+// 周期系数与对手规模(对手顺周期扩张、寒冬出清)
+const cycMulOf = (id, t) => 1 + ECON[id].amp * t.wave;
+const rivalOf = (g, id, t) => ECON[id].M0 * (1 + g.era * 0.06) * clamp(1 + 0.3 * t.wave, 0.6, 1.4) * t.rout;
+const shareTarget = (g, id, t) => { const E = effOf(id, t); return 100 * E / (E + rivalOf(g, id, t)); };
+const compMulOf = (t) => clamp(1 - (t.comp - 50) * 0.005, 0.55, 1.25);
+// 研发规模(研发+人才)决定产品质量——买量买不来产品力
+const effQOf = (id, t) => { const c = capOf(id, t); return c * (1 - Math.exp(-(t.rd + t.hc * HC_SCALE) * bandOf(id).slope / c)); };
+const qualOf = (id, t) => 0.7 + 0.6 * effQOf(id, t) / capOf(id, t);
+// 每季收益与投入
+const revOf = (g, id, t) => {
+  const synMul = 1 + 0.06 * synCount(g, id) - 0.06 * dragCount(g, id);
+  return mktSizeOf(id, t) * (t.share / 100) * qualOf(id, t) * compMulOf(t) * cycMulOf(id, t) * synMul;
+};
+const costOf = (g, id, t) => t.hc * wageOf(t) + scaleOf(t) * bandOf(id).opex * (1 - g.stats.mgr * 0.02);
+// 寒冬折扣:资产便宜,逆周期投入打75折
+const troughMul = (t) => (t.wave < -0.3 ? 0.75 : 1);
+// 周期区间描述
+const zoneOf = (w) => w >= 0.5 ? { txt: "高景气", icon: "🔥" } : w >= 0.15 ? { txt: "景气", icon: "↗" } : w > -0.15 ? { txt: "平稳", icon: "→" } : w > -0.5 ? { txt: "下行", icon: "↘" } : { txt: "寒冬", icon: "🧊" };
+
+/* ====================== 游戏逻辑 ====================== */
+const initTracks = () => {
+  const m = {};
+  TRACKS.forEach((d) => {
+    const phase = rnd() * 6.2832;
+    m[d.id] = { entered: false, rd: 0, mkt: 0, hc: 0, share: 0, pnl: 0, fund: d.heat, comp: d.comp, hire: d.hire, phase, wave: clamp(Math.sin(phase), -1.2, 1.2), lastWave: 0, rout: 1, brk: 0 };
+  });
+  return m;
+};
+
+const newGame = (arch) => ({
+  phase: "play", arch: arch.id,
+  stats: { ...arch.stats },
+  cash: arch.cash, rep: arch.rep, equity: 100, hype: 0,
+  val: 400, lastVal: 400,
+  turn: 1, ap: 3 + Math.floor(arch.stats.mgr / 2),
+  tracks: initTracks(),
+  log: [{ t: 1, txt: `公司注册完成。账上 ${arch.cash} 万,${MAX_TURN} 个季度内,把它做成一家像样的公司。`, type: "sys" }],
+  forecast: null, insightBuff: false, bridgeUsed: false, ending: null, subs: [],
+  trainedThisTurn: false, raiseLocked: false, raisePity: 0, morale: 60, rounds: 0, era: 0,
+  hist: [{ t: 0, val: 400, cash: arch.cash, rep: arch.rep, morale: 60 }],
+  lastSummary: null,
+});
+
 const maxAP = (g) => 3 + Math.floor(g.stats.mgr / 2);
 const maxTracks = (g) => clamp(1 + Math.floor(g.stats.mgr / 2), 1, 6);
-const enteredIds = (g) => TRACKS.filter(t => g.tracks[t.id].entered).map(t => t.id);
-const synCount = (g, id) => SYN.filter(p => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).length;
-const dragCount = (g, id) => DRAG.filter(p => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).length;
-const scaleOf = (t) => t.rd + t.mkt + t.hc * HC_SCALE;
-const effOf = (id, t) => { const c = capOf(id, t); return c * (1 - Math.exp(-scaleOf(t) * bandOf(id).slope / c)); };
-const effQOf = (id, t) => { const c = capOf(id, t); return c * (1 - Math.exp(-(t.rd + t.hc * HC_SCALE) * bandOf(id).slope / c)); };
-const qualOf = (id, t) => .7 + .6 * effQOf(id, t) / capOf(id, t);
-const cycMulOf = (id, t) => 1 + ECON[id].amp * t.wave;
-const rivalOf = (g, id, t) => ECON[id].M0 * (1 + g.era * .06) * clamp(1 + .3 * t.wave, .6, 1.4) * t.rout;
-const shareTarget = (g, id, t) => { const E = effOf(id, t); return 100 * E / (E + rivalOf(g, id, t)); };
-const compMulOf = (t) => clamp(1 - (t.comp - 50) * .005, .55, 1.25);
-const revOf = (g, id, t) => mktSizeOf(id, t) * (t.share / 100) * qualOf(id, t) * compMulOf(t) * cycMulOf(id, t) * (1 + .06 * synCount(g,id) - .06 * dragCount(g,id));
-const costOf = (g, id, t) => t.hc * wageOf(t) + scaleOf(t) * bandOf(id).opex * (1 - g.stats.mgr * .02);
-const trancheOf = (id) => Math.round(defOf(id).fee * .45 / 50) * 50;
-const troughMul = (t) => t.wave < -.3 ? .75 : 1;
-const zoneOf = (w) => w >= .5 ? { txt:"高景气", icon:"🔥" } : w >= .15 ? { txt:"景气", icon:"↗" } : w > -.15 ? { txt:"平稳", icon:"→" } : w > -.5 ? { txt:"下行", icon:"↘" } : { txt:"寒冬", icon:"🧊" };
+const enteredIds = (g) => TRACKS.filter((t) => g.tracks[t.id].entered).map((t) => t.id);
+const synCount = (g, id) => SYN.filter((p) => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).length;
+const dragCount = (g, id) => DRAG.filter((p) => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).length;
+const avgFund = (g) => { const ids = enteredIds(g); return ids.length ? ids.reduce((s, i) => s + g.tracks[i].fund, 0) / ids.length : 50; };
+const avgMaturity = (g) => { const ids = enteredIds(g); return ids.length ? ids.reduce((s, i) => s + effOf(i, g.tracks[i]) / capOf(i, g.tracks[i]) * 100, 0) / ids.length : 0; };
+
+const subCycMul = (g, s) => 1 + ECON[s.tid].amp * g.tracks[s.tid].wave;
+const subMktCap = (g, s) => Math.max(0, Math.round(s.profit * 4 * 8 * (1 + 0.35 * g.tracks[s.tid].wave)));
+
 const calcVal = (g) => {
-  let v = 400 + g.rep * 30 + Math.max(g.cash, 0) * .25 + g.hype * 10;
-  enteredIds(g).forEach(id => { const t = g.tracks[id], E = effOf(id,t); v += E * .55 * (.5 + t.fund/100) + t.pnl * 4 * 6.5 * (1 + .3*t.wave) + t.share*30 + scaleOf(t)*bandOf(id).book*(1+.25*t.wave); });
+  let v = 400;
+  enteredIds(g).forEach((id) => {
+    const t = g.tracks[id], E = effOf(id, t);
+    v += E * 0.55 * (0.5 + t.fund / 100) + t.pnl * 4 * 6.5 * (1 + 0.3 * t.wave) + t.share * 30 + scaleOf(t) * bandOf(id).book * (1 + 0.25 * t.wave);
+  });
+  g.subs.forEach((s) => { v += subMktCap(g, s) * s.stake * 0.8; });
+  v += g.rep * 30 + Math.max(g.cash, 0) * 0.25 + g.hype * 10;
   return Math.round(v);
 };
-const initTracks = () => Object.fromEntries(TRACKS.map(d => {
-  const phase = rnd() * Math.PI * 2;
-  return [d.id, { entered:false, rd:0, mkt:0, hc:0, share:0, pnl:0, fund:d.heat, comp:d.comp, hire:d.hire, phase, wave:Math.sin(phase), rout:1, brk:0 }];
-}));
-const pushLog = (g, txt, type="n") => { g.logSeq = (g.logSeq||0)+1; g.log.unshift({ t:g.turn, txt, type, seq:g.logSeq }); if (g.log.length > 80) g.log.pop(); };
-const newGame = (arch) => ({ phase:"play", arch:arch.id, stats:{...arch.stats}, cash:arch.cash, rep:arch.rep, equity:100, hype:0, val:400, lastVal:400, turn:1, ap:3+Math.floor(arch.stats.mgr/2), tracks:initTracks(), log:[{t:1, txt:`公司注册完成。账上 ${arch.cash} 万,${MAX_TURN} 个季度内,把它做成一家像样的公司。`, type:"sys"}], trainedThisTurn:false, raiseLocked:false, raisePity:0, morale:60, rounds:0, era:0, hist:[{t:0,val:400,cash:arch.cash,rep:arch.rep,morale:60}], ending:null });
 
-const Btn = ({ on, disabled, children, accent, full }) => <button onClick={on} disabled={disabled} style={{ background: disabled ? "#1A2238" : accent ? C.gold : "#1E2B4A", color: disabled ? "#4A5570" : accent ? "#1A1408" : C.txt, border:`1px solid ${disabled ? "#222C46" : accent ? C.gold : "#33456F"}`, borderRadius:6, padding:"7px 10px", fontSize:12, fontWeight:600, width:full?"100%":undefined, cursor:disabled?"not-allowed":"pointer" }}>{children}</button>;
-const Bar = ({ v, color }) => <div style={{ height:5, background:"#1A2440", borderRadius:3, overflow:"hidden" }}><div style={{ width:`${clamp(v,0,100)}%`, height:"100%", background:color, transition:"width .3s" }} /></div>;
+const pushLog = (g, txt, type = "n") => { g.logSeq = (g.logSeq || 0) + 1; g.log.unshift({ t: g.turn, txt, type, seq: g.logSeq }); if (g.log.length > 60) g.log.pop(); };
+
+// 抽事件:洞察与人力规模提升好事件概率(基础50%,上限78%)
+const pickEvent = (g, id) => {
+  const pool = EVENTS[id];
+  const pGood = clamp(0.5 + g.stats.ins * 0.02 + g.tracks[id].hc * 0.015, 0.5, 0.78);
+  const sub = pool.filter((e) => e.t === (rnd() < pGood ? "g" : "b"));
+  return sub[Math.floor(rnd() * sub.length)];
+};
+
+// 应用事件;洞察可削弱负面事件。prod类事件折算为规模冲击(±30万/点),talent折算人力
+const applyEvent = (g, trackId, ev) => {
+  const def = defOf(trackId);
+  let fx = { ...ev.fx }, mitigated = false;
+  if (ev.t === "b" && rnd() < g.stats.ins * 0.05) {
+    mitigated = true;
+    Object.keys(fx).forEach((k) => { fx[k] = Math.round(fx[k] / 2); });
+  }
+  const tr = g.tracks[trackId];
+  if (fx.cash) g.cash += fx.cash;
+  if (fx.rep) g.rep = clamp(g.rep + fx.rep, 0, 100);
+  if (fx.prod) tr.rd = Math.max(0, tr.rd + fx.prod * 30);
+  if (fx.comp) tr.comp = clamp(tr.comp + fx.comp, 10, 100);
+  if (fx.fund) tr.fund = clamp(tr.fund + fx.fund, 5, 100);
+  if (fx.hire) tr.hire = clamp(tr.hire + fx.hire, 10, 100);
+  if (fx.talent) tr.hc = clamp(tr.hc + fx.talent, 0, MAX_HC);
+  if (fx.share) tr.share = clamp(tr.share + fx.share, 0, 100);
+  let txt = `【${def.name}】${ev.n}`;
+  const bits = [];
+  if (fx.cash) bits.push(`现金${fx.cash > 0 ? "+" : ""}${fx.cash}万`);
+  if (fx.rep) bits.push(`声望${fx.rep > 0 ? "+" : ""}${fx.rep}`);
+  if (fx.prod) bits.push(`规模${fx.prod > 0 ? "+" : ""}${fx.prod * 30}万`);
+  if (fx.comp) bits.push(`竞争${fx.comp > 0 ? "+" : ""}${fx.comp}`);
+  if (fx.fund) bits.push(`融资环境${fx.fund > 0 ? "+" : ""}${fx.fund}`);
+  if (fx.hire) bits.push(`招聘难度${fx.hire > 0 ? "+" : ""}${fx.hire}`);
+  if (fx.talent) bits.push(`人才${fx.talent > 0 ? "+" : ""}${fx.talent}`);
+  if (fx.share) bits.push(`市占率${fx.share > 0 ? "+" : ""}${fx.share}`);
+  if (bits.length) txt += " → " + bits.join(",");
+  if (mitigated) txt += "(凭洞察提前布防,影响减半)";
+  pushLog(g, txt, ev.t);
+  if (ev.cross) {
+    const [cid, cfx] = ev.cross;
+    const ct = g.tracks[cid], cdef = defOf(cid);
+    if (ct.entered) {
+      if (cfx.fund) ct.fund = clamp(ct.fund + cfx.fund, 5, 100);
+      if (cfx.prod) ct.rd = Math.max(0, ct.rd + cfx.prod * 30);
+      if (cfx.comp) ct.comp = clamp(ct.comp + cfx.comp, 10, 100);
+      pushLog(g, `　↳ 传导至【${cdef.name}】:${Object.entries(cfx).map(([k, v]) => ({ fund: "融资环境" + (v > 0 ? "+" : "") + v, prod: "规模" + (v > 0 ? "+" : "") + v * 30 + "万", comp: "竞争" + (v > 0 ? "+" : "") + v }[k])).join(",")}`, ev.t);
+    }
+  }
+};
+
+const isMatureLine = (g, id) => { const t = g.tracks[id]; return t.share >= 45 && t.pnl > 0; };
+
+const checkEnding = (g) => {
+  if (g.ending) return;
+  if (g.equity < 10) { g.ending = { grade: "出局", title: "被资本扫地出门", desc: "股权稀释到底线之下,董事会投票把你请出了你亲手创办的公司。融资是燃料,也是绞索。" }; g.phase = "end"; return; }
+  if (g.rep <= 0) { g.ending = { grade: "崩塌", title: "信任彻底崩塌", desc: "饼画了太多,兑现太少。员工流失、客户解约、投资人拉黑——故事讲完了。" }; g.phase = "end"; return; }
+  if (g.cash < 0) {
+    if (!g.bridgeUsed && g.rep >= 45) {
+      g.bridgeUsed = true; g.cash = 500; g.rep -= 12; g.equity -= 5;
+      pushLog(g, "⚠️ 账上现金归零!凭借声望拿到一笔过桥贷款:现金回到500万,声望-12,股权-5%。仅此一次。", "b");
+    } else { g.ending = { grade: "破产", title: "现金流断裂", desc: "工资发不出的那个早晨,一切都结束了。账可以画,钱不能。" }; g.phase = "end"; return; }
+  }
+  const strongLines = enteredIds(g).filter((id) => isMatureLine(g, id)).length + g.subs.length;
+  const king = enteredIds(g).some((id) => { const t = g.tracks[id]; return t.share >= 75 && effOf(id, t) >= capOf(id, t) * 0.85; });
+  if (g.val >= 100000 && g.rep >= 65 && (strongLines >= 2 || king)) {
+    g.ending = { grade: "IPO", title: king && strongLines < 2 ? "垂直之王,敲钟上市" : "敲钟上市", desc: king && strongLines < 2 ? `第 ${g.turn} 季度,公司以一条规模垄断级业务线独撑 ${fmt(g.val)} 估值登陆资本市场。把一件事做到极致,本身就是最大的多元化。` : `第 ${g.turn} 季度,公司以 ${fmt(g.val)} 估值、两条成熟业务线的姿态登陆资本市场。所有画过的饼,都被你一口口做了出来。` };
+    g.phase = "end"; return;
+  }
+  if (g.turn > MAX_TURN) {
+    const v = g.val;
+    const grade = v >= 100000 ? "S" : v >= 50000 ? "A" : v >= 20000 ? "B" : v >= 8000 ? "C" : "D";
+    const descs = { S: "独角兽收官,上市只差临门一脚。", A: "明星公司,并购邀约不断。", B: "一门扎实的生意,活得体面。", C: "勉强维持,投资人已读不回。", D: "十年一觉创业梦。" };
+    g.ending = { grade, title: `${MAX_TURN}季度终局结算`, desc: `最终估值 ${fmt(v)},持股 ${g.equity}%。${descs[grade]}` };
+    g.phase = "end";
+  }
+};
+
+const endTurn = (g) => {
+  const snap = { val: g.val, cash: g.cash, rep: g.rep, morale: g.morale, seq: g.logSeq || 0, turn: g.turn };
+  // 0. 黑天鹅:kill prod=研发资产报废 share=市场地位归零 both=双毁;高洞察可减损为腰斩
+  enteredIds(g).forEach((id) => {
+    const bs = BLACKSWAN[id];
+    if (!bs || rnd() >= bs.p) return;
+    const def = defOf(id), t = g.tracks[id];
+    const dodged = rnd() < g.stats.ins * 0.02;
+    if (bs.kill === "prod" || bs.kill === "both") t.rd = dodged ? Math.round(t.rd / 2) : 0;
+    if (bs.kill === "share" || bs.kill === "both") t.share = dodged ? Math.round(t.share / 2) : 0;
+    if (bs.cash) g.cash += bs.cash;
+    if (bs.rep) g.rep = clamp(g.rep + bs.rep, 0, 100);
+    g.morale = clamp(g.morale - 8, 0, 100);
+    const killTxt = { prod: "研发资产", share: "市占率", both: "研发资产与市占率" }[bs.kill];
+    pushLog(g, `🦢 黑天鹅!【${def.name}】${bs.n}:${killTxt}${dodged ? "腰斩(你提前嗅到风声,抢出了半条命)" : "归零"}${bs.cash ? `,现金${bs.cash}万` : ""}${bs.rep ? `,声望${bs.rep}` : ""},士气 -8。${bs.txt}`, "b");
+  });
+  // 0.5 黑天鹅不放过子公司
+  g.subs = g.subs.filter((s) => {
+    const bs = BLACKSWAN[s.tid];
+    if (!bs || rnd() >= bs.p) return true;
+    const dodged = rnd() < g.stats.ins * 0.02;
+    if (dodged) {
+      s.profit = Math.round(s.profit / 2);
+      pushLog(g, `🦢 黑天鹅击中${s.name}:${bs.n}!你提前嗅到风声减持避险,子公司利润腰斩但保住了上市地位。`, "b");
+      return true;
+    }
+    const repLoss = Math.round((bs.rep || -6) / 2);
+    g.rep = clamp(g.rep + repLoss, 0, 100);
+    g.morale = clamp(g.morale - 4, 0, 100);
+    pushLog(g, `🦢 黑天鹅击中${s.name}:${bs.n}!股价单日归零、强制退市,你${Math.round(s.stake * 100)}%的持股化为废纸,声望${repLoss},士气 -4。${bs.txt}`, "b");
+    return false;
+  });
+  // 1. 事件(若有洞察预报则按预报兑现)
+  enteredIds(g).forEach((id) => {
+    const fc = g.forecast?.find((f) => f.id === id);
+    let ev = null;
+    if (fc) ev = fc.ev; else if (rnd() < 0.4) ev = pickEvent(g, id);
+    if (ev) applyEvent(g, id, ev);
+  });
+  g.forecast = null;
+  // 1.5 周期推进(所有赛道,在营与否——大盘永远在转)
+  TRACKS.forEach((d) => {
+    const t = g.tracks[d.id];
+    t.lastWave = t.wave;
+    t.phase += 0.33 + (rnd() - 0.5) * 0.14;
+    t.wave = clamp(Math.sin(t.phase) + (rnd() - 0.5) * 0.4, -1.2, 1.2);
+    if (t.entered) {
+      const a = zoneOf(t.lastWave).txt, b = zoneOf(t.wave).txt;
+      if (a !== b && (b === "高景气" || b === "寒冬")) {
+        pushLog(g, b === "高景气" ? `🔥【${d.name}】行业进入高景气:需求井喷,本季收入系数 ×${cycMulOf(d.id, t).toFixed(2)}。对手也在疯狂扩产——顶部不远了。` : `🧊【${d.name}】行业坠入寒冬:收入系数 ×${cycMulOf(d.id, t).toFixed(2)}。但对手在出清、资产在打折(本季投入75折)——逆周期布局的窗口。`, b === "高景气" ? "g" : "b");
+      }
+    }
+  });
+  // 1.8 破界判定:小赛道盈利+产品过硬,小概率炸开天花板(品类革命/平台跃迁/技术代差)
+  enteredIds(g).forEach((id) => {
+    const t = g.tracks[id], def = defOf(id);
+    if (!BREAKABLE(id) || t.brk >= BRK_MAX || t.pnl <= 0 || t.share < 30) return;
+    if (effQOf(id, t) < capOf(id, t) * 0.6) return;
+    const p = (0.035 + g.stats.ins * 0.003) * (t.brk ? 0.6 : 1);
+    if (rnd() < p) {
+      t.brk += 1;
+      t.fund = clamp(t.fund + 15, 5, 100);
+      t.comp = clamp(t.comp - 15, 10, 100);
+      g.rep = clamp(g.rep + 8, 0, 100);
+      g.morale = clamp(g.morale + 8, 0, 100);
+      pushLog(g, `🚀 破界!【${def.name}】${BRK_NAME[def.cat]}——天花板 ×${BRK_CAP}(现 ${fmt(capOf(id, t))})、行业盘子 ×${BRK_MKT},融资环境+15、竞争-15(蓝海窗口期,巨头终将跟进),声望+8、士气+8。${t.brk >= BRK_MAX ? "品类帝国已成,这条赛道的故事讲到头了。" : "再来一次,就是品类帝国。"}`, "g");
+    }
+  });
+  // 2. 经营结算:收入(份额×质量×竞争×周期) - 投入(人力维持+规模维持)
+  let totalNet = 0;
+  const lossy = [];
+  enteredIds(g).forEach((id) => {
+    const t = g.tracks[id];
+    const rev = revOf(g, id, t), cost = costOf(g, id, t);
+    t.pnl = Math.round(rev - cost);
+    totalNet += t.pnl;
+    if (t.pnl < -200) lossy.push(`${defOf(id).name}(${t.pnl}万)`);
+    // 份额向目标漂移:规模相对对手决定走向(寒冬对手出清=份额自动抬升)
+    t.share = clamp(t.share + (shareTarget(g, id, t) - t.share) * 0.3, 0, 100);
+    // 行业出清:份额≥40且盈利,你在把对手挤出市场;份额跌破30则对手回流
+    if (t.share >= 40 && t.pnl > 0) {
+      const before = t.rout;
+      t.rout = Math.max(0.5, t.rout * 0.985);
+      if (before > 0.8 && t.rout <= 0.8) pushLog(g, `🏜️【${defOf(id).name}】行业出清进行中:两成对手已被你挤出市场,空出的盘子正在向你集中。`, "g");
+      if (before > 0.62 && t.rout <= 0.62) pushLog(g, `👑【${defOf(id).name}】对手规模已被压缩近四成,垄断的轮廓开始浮现——小心监管的眼睛。`, "g");
+    } else if (t.share < 30 && t.rout < 1) {
+      t.rout = Math.min(1, t.rout * 1.01);
+    }
+  });
+  totalNet = Math.round(totalNet);
+  const nTracks = enteredIds(g).length;
+  const hq = Math.round(20 + g.turn * 2.5 + nTracks * nTracks * 12);
+  totalNet -= hq;
+  g.cash += totalNet;
+  if (nTracks || g.subs.length) {
+    g.morale = clamp(g.morale + (totalNet >= 0 ? 1 : -1), 0, 100);
+    if (totalNet > 0 && g.hype - avgMaturity(g) < 10) g.rep = clamp(g.rep + 1, 0, 100);
+    pushLog(g, `季度经营结算:${totalNet >= 0 ? "净利 +" : "净亏 "}${totalNet}万(已含总部费用-${hq}万;士气${totalNet >= 0 ? "+1" : "-1"}${totalNet > 0 && g.hype - avgMaturity(g) < 10 ? ",实打实的盈利让市场信任+1声望" : ""})${lossy.length ? ` · 重亏:${lossy.join("、")}` : ""}`, totalNet >= 0 ? "g" : "b");
+  }
+  // 2.5 子公司:利润随周期波动+结构性衰退,分红按持股
+  if (g.subs.length) {
+    let totalDiv = 0;
+    const delisted = [];
+    g.subs.forEach((s) => {
+      const def = defOf(s.tid);
+      s.profit = Math.round(s.profit * (1 - 0.012 - Math.max(0, def.comp - 55) * 0.0012));
+      const cyc = subCycMul(g, s);
+      const div = Math.max(0, Math.round(s.profit * cyc * s.stake));
+      s.lastDiv = div; totalDiv += div;
+      if (Math.abs(cyc - 1) > 0.45) pushLog(g, `${s.name}随行业周期${cyc > 1 ? "景气大涨" : "承压下行"},本季分红 ${div}万`, cyc > 1 ? "g" : "b");
+      if (s.profit < s.p0 * 0.25) delisted.push(s);
+    });
+    if (totalDiv > 0) { g.cash += totalDiv; pushLog(g, `子公司分红到账 +${totalDiv}万`, "g"); }
+    delisted.forEach((s) => {
+      const salvage = Math.round(subMktCap(g, s) * s.stake * 0.4);
+      g.cash += salvage;
+      g.subs = g.subs.filter((x) => x !== s);
+      pushLog(g, `${s.name}利润衰退至退市线,清算离场,持股残值回收 ${salvage}万。不打理的资产在红海里会融化——该减持时别犹豫。`, "b");
+    });
+  }
+  // 2.7 树大招风:份额与规模双高引来围剿
+  enteredIds(g).forEach((id) => {
+    const t = g.tracks[id];
+    if (t.share >= 55 && effOf(id, t) >= capOf(id, t) * 0.7 && rnd() < 0.3) {
+      t.comp = clamp(t.comp + 8, 10, 100);
+      pushLog(g, `树大招风:【${defOf(id).name}】成为全行业标靶,巨头组团围剿,竞争 +8。`, "b");
+    }
+  });
+  // 2.8 反垄断:份额≥80,每季10%概率被调查
+  enteredIds(g).forEach((id) => {
+    const t = g.tracks[id];
+    if (t.share >= 80 && rnd() < 0.1) {
+      const fine = Math.round(g.val * 0.03);
+      g.cash -= fine; t.share = Math.max(0, t.share - 15);
+      g.rep = clamp(g.rep - 6, 0, 100);
+      pushLog(g, `⚖️ 反垄断调查落地!【${defOf(id).name}】被认定滥用市场支配地位:罚款 ${fmt(fine)}(估值的3%),强制开放市场份额 -15,声望 -6。垄断的尽头,是监管。`, "b");
+    }
+  });
+  // 3. 画饼反噬:预期与平均业务成熟度的落差
+  g.hype = Math.max(0, g.hype - 6);
+  const gap = g.hype - avgMaturity(g);
+  if (gap > 30) {
+    const mLoss = 4 + Math.floor((gap - 30) / 10);
+    g.rep = clamp(g.rep - 5, 0, 100);
+    g.morale = clamp(g.morale - mLoss, 0, 100);
+    pushLog(g, `媒体追问承诺兑现进度,声望 -5;团队自己也开始嘀咕"饼在哪呢",士气 -${mLoss}。少画饼,或快交付。`, "b");
+  }
+  // 3.5 士气危机:低于30人才出走,低于15团队塌方
+  if (g.morale < 30) {
+    const lost = [];
+    enteredIds(g).forEach((id) => {
+      const t = g.tracks[id];
+      if (t.hc > 0 && rnd() < (30 - g.morale) * 0.015) {
+        t.hc -= 1;
+        lost.push(defOf(id).name);
+      }
+    });
+    if (lost.length) {
+      if (g.morale < 15) {
+        g.rep = clamp(g.rep - 4, 0, 100);
+        pushLog(g, `💥 团队塌方!士气崩盘之下,${lost.join("、")}的核心成员集体出走,离职帖在脉脉刷屏,声望 -4。空头支票开太多,人心散了。`, "b");
+      } else {
+        pushLog(g, `士气低迷(${g.morale}/100),${lost.join("、")}各有一位核心人才悄然离职。看不到饼兑现的团队,留不住人。`, "b");
+      }
+    }
+  }
+  // 4. 环境向基准回归(竞争基准随内卷时代上移)
+  const eraLv = Math.min(5, Math.floor(g.turn / 8));
+  if (eraLv > g.era) {
+    g.era = eraLv;
+    pushLog(g, `📢 时代变了:全行业内卷加深,所有赛道竞争基准 +3、对手规模 +6%(当前累计内卷${eraLv}级)。守成的难度,从此高过创业。`, "b");
+  }
+  TRACKS.forEach((def) => {
+    const t = g.tracks[def.id];
+    const bases = { fund: def.heat, comp: Math.min(100, def.comp + g.era * 3), hire: def.hire };
+    ["fund", "comp", "hire"].forEach((k) => {
+      t[k] += t[k] > bases[k] ? -2 : t[k] < bases[k] ? 2 : 0;
+    });
+  });
+  // 5. 估值与回合推进
+  g.lastVal = g.val;
+  g.val = calcVal(g);
+  const turnLogs = g.log.filter((l) => (l.seq || 0) > snap.seq && l.type !== "sum");
+  const goods = turnLogs.filter((l) => l.type === "g").length;
+  const bads = turnLogs.filter((l) => l.type === "b").length;
+  const headline = turnLogs.find((l) => l.txt.includes("🦢")) || turnLogs.find((l) => l.type === "b") || turnLogs.find((l) => l.type === "g");
+  g.lastSummary = {
+    t: snap.turn,
+    dVal: g.val - snap.val, dCash: g.cash - snap.cash,
+    dRep: g.rep - snap.rep, dMorale: g.morale - snap.morale,
+    goods, bads,
+    headline: headline ? headline.txt.slice(0, 42) + (headline.txt.length > 42 ? "…" : "") : "波澜不惊的一个季度。",
+  };
+  g.hist.push({ t: snap.turn, val: g.val, cash: g.cash, rep: g.rep, morale: g.morale });
+  pushLog(g, `——— Q${String(snap.turn).padStart(2, "0")} 小结:估值${g.val - snap.val >= 0 ? "+" : ""}${fmt(g.val - snap.val)} | 现金${g.cash - snap.cash >= 0 ? "+" : ""}${fmt(g.cash - snap.cash)} | 利好×${goods} 利空×${bads} ———`, "sum");
+  g.turn += 1;
+  g.ap = maxAP(g);
+  g.insightBuff = false;
+  g.trainedThisTurn = false;
+  g.raiseLocked = false;
+  checkEnding(g);
+};
+
+/* ====================== 界面 ====================== */
+const C = {
+  bg: "#0B1020", panel: "#121A2F", panel2: "#0E1524", line: "#22304F",
+  txt: "#E9E6DC", dim: "#8A93A8", up: "#FF5D5D", down: "#2EBD85", gold: "#E3B341",
+};
+const mono = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
+
+const Btn = ({ on, disabled, children, accent, full }) => (
+  <button onClick={on} disabled={disabled} style={{
+    background: disabled ? "#1A2238" : accent ? C.gold : "#1E2B4A",
+    color: disabled ? "#4A5570" : accent ? "#1A1408" : C.txt,
+    border: `1px solid ${disabled ? "#222C46" : accent ? C.gold : "#33456F"}`,
+    borderRadius: 6, padding: "7px 10px", fontSize: 12, fontWeight: 600,
+    width: full ? "100%" : undefined, cursor: disabled ? "not-allowed" : "pointer",
+  }}>{children}</button>
+);
+
+const Bar = ({ v, color }) => (
+  <div style={{ height: 5, background: "#1A2440", borderRadius: 3, overflow: "hidden" }}>
+    <div style={{ width: `${clamp(v, 0, 100)}%`, height: "100%", background: color, transition: "width .3s" }} />
+  </div>
+);
+
+const envColor = (v, invert) => {
+  const good = invert ? v < 50 : v > 50;
+  return good ? C.down : v === 50 ? C.dim : C.up;
+};
+
+const LineChart = ({ series, h = 120, fmtFn }) => {
+  const w = 340, padL = 4, padR = 4, padT = 16, padB = 14;
+  const all = series.flatMap((s) => s.data);
+  let mn = Math.min(...all, 0), mx = Math.max(...all);
+  if (mx === mn) mx = mn + 1;
+  const len = Math.max(...series.map((s) => s.data.length));
+  const X = (i) => padL + (i / Math.max(1, len - 1)) * (w - padL - padR);
+  const Y = (v) => h - padB - ((v - mn) / (mx - mn)) * (h - padT - padB);
+  const f = fmtFn || ((v) => Math.round(v));
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
+      {mn < 0 && <line x1={padL} x2={w - padR} y1={Y(0)} y2={Y(0)} stroke={C.line} strokeDasharray="3 3" />}
+      {series.map((s, si) => (
+        <polyline key={si} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray={s.dash || "none"}
+          points={s.data.map((v, i) => `${X(i)},${Y(v)}`).join(" ")} />
+      ))}
+      <text x={padL} y={11} fontSize="9" fill={C.dim} fontFamily="monospace">峰值 {f(mx)}</text>
+      <text x={padL} y={h - 3} fontSize="9" fill={C.dim} fontFamily="monospace">谷值 {f(Math.min(...all))}</text>
+      {series.map((s, si) => (
+        <text key={si} x={w - padR} y={11 + si * 11} fontSize="9" fill={s.color} textAnchor="end" fontFamily="monospace">— {s.name}</text>
+      ))}
+    </svg>
+  );
+};
+
 const Spark = ({ data, color }) => {
-  if (data.length < 2) return null; const w=56,h=18,mn=Math.min(...data),mx=Math.max(...data); const X=i=>(i/(data.length-1))*(w-2)+1, Y=v=>h-2-((v-mn)/Math.max(1,mx-mn))*(h-4);
-  return <svg width={w} height={h}><polyline fill="none" stroke={color} strokeWidth="1.5" points={data.map((v,i)=>`${X(i)},${Y(v)}`).join(" ")} /></svg>;
+  if (data.length < 2) return null;
+  const w = 56, h = 18;
+  const mn = Math.min(...data), mx = Math.max(...data) || 1;
+  const Y = (v) => h - 2 - ((v - mn) / Math.max(1, mx - mn)) * (h - 4);
+  const X = (i) => (i / (data.length - 1)) * (w - 2) + 1;
+  return (
+    <svg width={w} height={h} style={{ opacity: 0.9 }}>
+      <polyline fill="none" stroke={color} strokeWidth="1.5" points={data.map((v, i) => `${X(i)},${Y(v)}`).join(" ")} />
+    </svg>
+  );
 };
 
 function CEOSim() {
   const [g, setG] = useState(null);
-  const mut = (fn) => setG(prev => { const n = structuredClone(prev); fn(n); return n; });
-  const avgFund = (n) => { const ids = enteredIds(n); return ids.length ? ids.reduce((s,i)=>s+n.tracks[i].fund,0)/ids.length : 50; };
-  const avgMaturity = (n) => { const ids = enteredIds(n); return ids.length ? ids.reduce((s,i)=>s+effOf(i,n.tracks[i])/capOf(i,n.tracks[i])*100,0)/ids.length : 0; };
-  const checkEnding = (n) => {
-    if (n.cash < 0) { n.ending = { grade:"破产", title:"现金流断裂", desc:"工资发不出的那个早晨,一切都结束了。账可以画,钱不能。" }; n.phase="end"; }
-    if (n.rep <= 0) { n.ending = { grade:"崩塌", title:"信任彻底崩塌", desc:"饼画了太多,兑现太少。故事讲完了。" }; n.phase="end"; }
-    if (n.equity < 10) { n.ending = { grade:"出局", title:"被资本扫地出门", desc:"股权稀释到底线之下,董事会把你请出了你亲手创办的公司。" }; n.phase="end"; }
-    const mature = enteredIds(n).filter(id => n.tracks[id].share >= 45 && n.tracks[id].pnl > 0).length;
-    const king = enteredIds(n).some(id => n.tracks[id].share >= 75 && effOf(id,n.tracks[id]) >= capOf(id,n.tracks[id])*.85);
-    if (n.val >= 100000 && n.rep >= 65 && (mature >= 2 || king)) { n.ending = { grade:"IPO", title:"敲钟上市", desc:`第 ${n.turn} 季度,公司以 ${fmt(n.val)} 估值登陆资本市场。所有画过的饼,都被你一口口做了出来。` }; n.phase="end"; }
-    if (n.turn > MAX_TURN && !n.ending) { const v=n.val, grade=v>=100000?"S":v>=50000?"A":v>=20000?"B":v>=8000?"C":"D"; n.ending={grade,title:`${MAX_TURN}季度终局结算`,desc:`最终估值 ${fmt(v)},持股 ${n.equity}%。`}; n.phase="end"; }
-  };
-  const trainCost = lv => 150 * lv;
-  const doTrain = k => mut(n => { const lv=n.stats[k], cost=trainCost(lv); if(n.trainedThisTurn||lv>=10||n.cash<cost)return; n.trainedThisTurn=true; n.cash-=cost; n.stats[k]++; pushLog(n,`自我修炼:${STAT_META[k].name}提升至 ${lv+1} 级(花费${cost}万)`,"sys"); });
-  const raiseRate = n => clamp(Math.round(25+n.stats.cha*4+n.rep*.3+(avgFund(n)-50)*.4+n.raisePity-n.rounds*4),5,95);
-  const doRaise = () => mut(n => { if(n.ap<1||n.raiseLocked)return; n.ap--; const rate=raiseRate(n); if(rnd()*100<rate){ const amt=Math.max(300,Math.round(n.val*.15)); n.cash+=amt; n.equity=Math.round((n.equity-12)*10)/10; n.raisePity=0; n.rounds++; pushLog(n,`融资成功!募得 ${fmt(amt)},稀释股权12%(剩余${n.equity}%)。`,"g"); } else { n.raiseLocked=true; n.raisePity+=8; pushLog(n,`路演被拒,本季融资窗口关闭。下次融资成功率 +8%`,"b"); } checkEnding(n); });
-  const doHype = () => mut(n => { if(n.ap<1)return; n.ap--; const r=5+n.stats.cha,h=10+n.stats.cha*2,m=6+Math.floor(n.stats.cha/2); n.rep=clamp(n.rep+r,0,100); n.hype+=h; n.morale=clamp(n.morale+m,0,100); pushLog(n,`发布会上你描绘宏大蓝图:声望+${r},士气+${m},市场预期+${h}。`,"g"); });
-  const doInsight = () => mut(n => { if(n.ap<1)return; n.ap--; n.insightBuff=true; pushLog(n,"你沉下心调研客户、对手与产业链:下一次研发事半功倍(+50%)。","sys"); });
-  const doEnter = id => mut(n => { const d=defOf(id),t=n.tracks[id],fee=Math.round(d.fee*(t.wave<-.3?.85:1)); if(n.ap<1||t.entered||n.cash<fee||n.rep<d.repReq||enteredIds(n).length>=maxTracks(n))return; n.ap--; n.cash-=fee; Object.assign(t,{entered:true,rd:fee,mkt:0,hc:0,share:2,pnl:0}); pushLog(n,`重注入局【${d.name}】,${fee}万启动建设。${d.desc}`,"sys"); });
-  const doRnD = id => mut(n => { const t=n.tracks[id],cost=Math.round(trancheOf(id)*troughMul(t)); if(n.ap<1||n.cash<cost)return; n.ap--; n.cash-=cost; const gain=Math.round(trancheOf(id)*(n.insightBuff?1.5:1)); t.rd+=gain; n.insightBuff=false; pushLog(n,`【${defOf(id).name}】研发投入 ${cost}万,规模 +${gain}万。`,"g"); checkEnding(n); });
-  const mktGain = (n,id) => Math.max(.1,Math.round(ECON[id].ad*(trancheOf(id)*.8)/mktSizeOf(id,n.tracks[id])*100*(1-n.tracks[id].share/100)*10)/10);
-  const doMkt = id => mut(n => { const t=n.tracks[id],nom=Math.round(trancheOf(id)*.8),cost=Math.round(nom*troughMul(t)); if(n.ap<1||n.cash<cost)return; n.ap--; n.cash-=cost; t.mkt+=Math.round(nom*bandOf(id).pers); t.share=clamp(t.share+mktGain(n,id),0,100); pushLog(n,`【${defOf(id).name}】营销投放 ${cost}万,市占率提升。`,"g"); checkEnding(n); });
-  const hireRate = (n,id) => clamp(Math.round(75-(n.tracks[id].hire-50)*.7+n.stats.mgr*3+(n.morale-60)*.35),10,95);
-  const doHire = id => mut(n => { const t=n.tracks[id]; if(n.ap<1||n.cash<100||t.hc>=MAX_HC)return; n.ap--; n.cash-=100; if(rnd()*100<hireRate(n,id)){t.hc++; pushLog(n,`【${defOf(id).name}】招到关键人才(${t.hc}/${MAX_HC})。`,"g");}else{n.cash+=50;t.hire=clamp(t.hire-3,10,100);pushLog(n,`【${defOf(id).name}】候选人去了大厂,猎头退回50万。`,"n");} checkEnding(n); });
-  const doPrune = id => mut(n => { const t=n.tracks[id],refund=Math.round((t.rd+t.mkt)*clamp(.12+n.stats.dec*.025,.12,.4)); if(n.ap<1||!t.entered)return; n.ap--; n.cash+=refund; n.rep=clamp(n.rep-Math.max(0,6-n.stats.dec),0,100); n.morale=clamp(n.morale-3,0,100); Object.assign(t,{entered:false,rd:0,mkt:0,hc:0,share:0,pnl:0,rout:1,brk:0}); pushLog(n,`果断剪枝【${defOf(id).name}】:回收 ${refund} 万。`,"sys"); });
-  const doEndTurn = () => mut(n => {
-    const snap={val:n.val,cash:n.cash,rep:n.rep,morale:n.morale};
-    enteredIds(n).forEach(id => { const t=n.tracks[id]; if(BLACKSWAN[id]&&rnd()<BLACKSWAN[id]){ t.rd=Math.round(t.rd/2); t.share=Math.round(t.share/2); n.rep=clamp(n.rep-8,0,100); n.morale=clamp(n.morale-6,0,100); pushLog(n,`🦢 黑天鹅!【${defOf(id).name}】遭遇毁灭性监管/事故,研发与份额腰斩。`,"b"); } });
-    enteredIds(n).forEach(id => { if(rnd()<.4){ const ev=EVENTS[Math.floor(rnd()*EVENTS.length)], t=n.tracks[id], fx=ev[2]; if(fx.cash)n.cash+=fx.cash; if(fx.rep)n.rep=clamp(n.rep+fx.rep,0,100); if(fx.prod)t.rd=Math.max(0,t.rd+fx.prod*30); if(fx.comp)t.comp=clamp(t.comp+fx.comp,10,100); if(fx.fund)t.fund=clamp(t.fund+fx.fund,5,100); if(fx.hire)t.hire=clamp(t.hire+fx.hire,10,100); if(fx.talent)t.hc=clamp(t.hc+fx.talent,0,MAX_HC); pushLog(n,`【${defOf(id).name}】${ev[1]}`,ev[0]); } });
-    TRACKS.forEach(d => { const t=n.tracks[d.id]; t.phase += .33 + (rnd()-.5)*.14; t.wave=clamp(Math.sin(t.phase)+(rnd()-.5)*.4,-1.2,1.2); });
-    let total=0; enteredIds(n).forEach(id => { const t=n.tracks[id], rev=revOf(n,id,t), cost=costOf(n,id,t); t.pnl=Math.round(rev-cost); total+=t.pnl; t.share=clamp(t.share+(shareTarget(n,id,t)-t.share)*.3,0,100); if(t.share>=40&&t.pnl>0)t.rout=Math.max(.5,t.rout*.985); });
-    const hq=Math.round(20+n.turn*2.5+enteredIds(n).length*enteredIds(n).length*12); total=Math.round(total-hq); n.cash+=total; n.morale=clamp(n.morale+(total>=0?1:-1),0,100); n.hype=Math.max(0,n.hype-6); if(n.hype-avgMaturity(n)>30){ n.rep=clamp(n.rep-5,0,100); n.morale=clamp(n.morale-5,0,100); pushLog(n,"媒体追问承诺兑现进度,声望-5,士气-5。少画饼,或快交付。","b"); }
-    const eraLv=Math.min(5,Math.floor(n.turn/8)); if(eraLv>n.era){n.era=eraLv; pushLog(n,"📢 时代变了:全行业内卷加深。","b");}
-    n.lastVal=n.val; n.val=calcVal(n); n.hist.push({t:n.turn,val:n.val,cash:n.cash,rep:n.rep,morale:n.morale}); pushLog(n,`——— Q${String(n.turn).padStart(2,"0")} 小结:估值${n.val-snap.val>=0?"+":""}${fmt(n.val-snap.val)} | 现金${n.cash-snap.cash>=0?"+":""}${fmt(n.cash-snap.cash)} ———`,"sum");
-    n.turn++; n.ap=maxAP(n); n.trainedThisTurn=false; n.raiseLocked=false; checkEnding(n);
+  const mut = (fn) => setG((prev) => { const n = structuredClone(prev); fn(n); return n; });
+
+  /* ---------- CEO 行动 ---------- */
+  const trainCost = (lv) => 150 * lv;
+  const doTrain = (k) => mut((n) => {
+    const lv = n.stats[k], cost = trainCost(lv);
+    if (n.trainedThisTurn || lv >= 10 || n.cash < cost) return;
+    n.trainedThisTurn = true; n.cash -= cost; n.stats[k] += 1;
+    pushLog(n, `自我修炼:${STAT_META[k].name}提升至 ${lv + 1} 级(花费${cost}万,不占行动点,每季一次)`, "sys");
   });
+  const raiseRate = (n) => clamp(Math.round(25 + n.stats.cha * 4 + n.rep * 0.3 + (avgFund(n) - 50) * 0.4 + n.raisePity - n.rounds * 4), 5, 95);
+  const doRaise = () => mut((n) => {
+    if (n.ap < 1 || n.raiseLocked) return;
+    n.ap -= 1;
+    const rate = raiseRate(n);
+    if (rnd() * 100 < rate) {
+      const amt = Math.max(300, Math.round(n.val * 0.15));
+      n.cash += amt; n.equity = Math.round((n.equity - 12) * 10) / 10;
+      n.raisePity = 0; n.rounds += 1;
+      pushLog(n, `融资成功(第${n.rounds}轮)!按 ${fmt(n.val)} 估值募得 ${fmt(amt)},稀释股权12%(剩余${n.equity}%)。轮次越靠后,投资人越挑剔(此后成功率-4%/轮)。`, "g");
+    } else {
+      n.raiseLocked = true; n.raisePity += 8;
+      pushLog(n, `路演被拒,本季融资窗口关闭。但被拒也是积累——下次融资成功率 +8%(已累计+${n.raisePity}%)`, "b");
+    }
+    checkEnding(n);
+  });
+  const doHype = () => mut((n) => {
+    if (n.ap < 1) return;
+    n.ap -= 1;
+    const r = 5 + n.stats.cha, h = 10 + n.stats.cha * 2, m = 6 + Math.floor(n.stats.cha / 2);
+    n.rep = clamp(n.rep + r, 0, 100); n.hype += h; n.morale = clamp(n.morale + m, 0, 100);
+    pushLog(n, `发布会上你描绘了宏大蓝图:声望 +${r},团队士气 +${m},市场预期 +${h}。饼能点燃团队,但不兑现就会反噬军心。`, "g");
+  });
+  const doInsight = () => mut((n) => {
+    if (n.ap < 1) return;
+    n.ap -= 1; n.insightBuff = true;
+    n.forecast = enteredIds(n).map((id) => {
+      const t = n.tracks[id];
+      const nextWave = Math.sin(t.phase + 0.33);
+      return { id, ev: rnd() < 0.4 ? pickEvent(n, id) : null, trend: nextWave - t.wave > 0.12 ? "↗ 周期抬升" : t.wave - nextWave > 0.12 ? "↘ 周期走弱" : "→ 周期持平" };
+    });
+    pushLog(n, "你沉下心调研客户、对手与产业链:下季度各赛道事件与周期走向已预判,且下一次研发事半功倍(+50%)。", "sys");
+  });
+  const enterFee = (n, id) => Math.round(defOf(id).fee * (n.tracks[id].wave < -0.3 ? 0.85 : 1));
+  const doEnter = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id], fee = enterFee(n, id);
+    if (n.ap < 1 || t.entered || n.cash < fee || n.rep < def.repReq || enteredIds(n).length >= maxTracks(n)) return;
+    n.ap -= 1; n.cash -= fee;
+    t.entered = true; t.rd = fee; t.mkt = 0; t.hc = 0; t.share = 2; t.pnl = 0;
+    pushLog(n, `重注入局【${def.name}】,${fee}万启动建设(计入规模)。${def.desc}。${fee < def.fee ? "寒冬抄底入场,门票打了85折。" : ""}`, "sys");
+  });
+  const pruneRefund = (n, id) => { const t = n.tracks[id]; return Math.round((t.rd + t.mkt) * clamp(0.12 + n.stats.dec * 0.025, 0.12, 0.4)); };
+  const doPrune = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id];
+    if (n.ap < 1 || !t.entered) return;
+    n.ap -= 1;
+    const refund = pruneRefund(n, id);
+    const repLoss = Math.max(0, 6 - n.stats.dec);
+    n.cash += refund; n.rep = clamp(n.rep - repLoss, 0, 100); n.morale = clamp(n.morale - 3, 0, 100);
+    Object.assign(t, { entered: false, rd: 0, mkt: 0, hc: 0, share: 0, pnl: 0, rout: 1, brk: 0 });
+    pushLog(n, `果断剪枝【${def.name}】:整体出售回收 ${refund} 万${repLoss ? `,声望 -${repLoss}` : ",体面退场零损伤"}。裁撤总让留下的人心头一紧,士气 -3。`, "sys");
+  });
+  /* ---------- 赛道行动:投入与收缩 ---------- */
+  const doRnD = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id], tranche = trancheOf(id);
+    const cost = Math.round(tranche * troughMul(t));
+    if (n.ap < 1 || n.cash < cost) return;
+    n.ap -= 1; n.cash -= cost;
+    const gain = Math.round(tranche * (n.insightBuff ? 1.5 : 1));
+    t.rd += gain;
+    pushLog(n, `【${def.name}】研发投入 ${cost}万${cost < tranche ? "(寒冬资产打折)" : ""},规模 +${gain}万${n.insightBuff ? "(洞察增效+50%)" : ""}。有效规模 ${fmt(effOf(id, t))}/${fmt(capOf(id, t))}${effOf(id, t) > capOf(id, t) * 0.85 ? " · 边际已明显递减" : ""}`, "g");
+    n.insightBuff = false;
+    checkEnding(n);
+  });
+  // 营销份额收益:∝投放/盘子×广告效率,且渗透越高增量受众越贵(饱和递减)
+  const mktGain = (n, id) => { const t = n.tracks[id]; return Math.max(0.1, Math.round(ECON[id].ad * (trancheOf(id) * 0.8) / mktSizeOf(id, t) * 100 * (1 - t.share / 100) * 10) / 10); };
+  const doMkt = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id], nominal = Math.round(trancheOf(id) * 0.8);
+    const cost = Math.round(nominal * troughMul(t));
+    if (n.ap < 1 || n.cash < cost) return;
+    n.ap -= 1; n.cash -= cost;
+    const pers = bandOf(id).pers, gain = mktGain(n, id);
+    t.mkt += Math.round(nominal * pers);
+    t.share = clamp(t.share + gain, 0, 100);
+    pushLog(n, `【${def.name}】营销投放 ${cost}万:市占率 +${gain}(渗透越高,增量受众越贵),品牌沉淀入规模 +${Math.round(nominal * pers)}万。买量买得来触达,买不来产品力。`, "g");
+    checkEnding(n);
+  });
+  const hireRate = (n, id) => clamp(Math.round(75 - (n.tracks[id].hire - 50) * 0.7 + n.stats.mgr * 3 + (n.morale - 60) * 0.35), 10, 95);
+  const doHire = (id) => mut((n) => {
+    const t = n.tracks[id], def = defOf(id);
+    if (n.ap < 1 || n.cash < 100 || t.hc >= MAX_HC) return;
+    n.ap -= 1; n.cash -= 100;
+    if (rnd() * 100 < hireRate(n, id)) {
+      t.hc += 1;
+      pushLog(n, `【${def.name}】招到一位关键人才(${t.hc}/${MAX_HC}):规模 +${HC_SCALE}万,但每季新增薪资 ${wageOf(t)}万——人是资产,也是固定成本。`, "g");
+    } else {
+      n.cash += 50; t.hire = clamp(t.hire - 3, 10, 100);
+      pushLog(n, `【${def.name}】候选人最终去了大厂,猎头退回50万。面试攒下的人脉让该赛道招聘难度 -3。`, "n");
+    }
+    checkEnding(n);
+  });
+  const doLayoff = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id];
+    if (n.ap < 1 || t.hc < 1) return;
+    const cut = Math.max(1, Math.ceil(t.hc * 0.3));
+    const sev = Math.round(cut * wageOf(t) * (1 - n.stats.dec * 0.04));
+    if (n.cash < sev) return;
+    n.ap -= 1; n.cash -= sev; t.hc -= cut;
+    const sLoss = Math.max(1, 3 - Math.floor(n.stats.dec / 4));
+    t.share = clamp(t.share - sLoss, 0, 100);
+    n.morale = clamp(n.morale - Math.max(3, 8 - n.stats.dec), 0, 100);
+    pushLog(n, `📉 宣布裁员【${def.name}】:裁撤 ${cut} 人,遣散费 ${sev}万,每季省下 ${cut * wageOf(t)}万薪资。服务收缩市占率 -${sLoss},士气 -${Math.max(3, 8 - n.stats.dec)}。瘦身止血,但人心要慢慢补。`, "sys");
+    checkEnding(n);
+  });
+  const doCutProj = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id];
+    if (n.ap < 1 || t.rd + t.mkt < 200) return;
+    n.ap -= 1;
+    const amt = Math.round((t.rd + t.mkt) * 0.25);
+    const salvage = Math.round(amt * (0.1 + n.stats.dec * 0.02));
+    t.rd = Math.round(t.rd * 0.75); t.mkt = Math.round(t.mkt * 0.75);
+    n.cash += salvage;
+    const sLoss = Math.max(2, 5 - Math.floor(n.stats.dec / 3));
+    t.share = clamp(t.share - sLoss, 0, 100);
+    n.morale = clamp(n.morale - 4, 0, 100);
+    pushLog(n, `🪓 裁撤项目【${def.name}】:砍掉25%规模(${amt}万),变卖资产回收 ${salvage}万,每季维持费随之下降。产品线收缩市占率 -${sLoss},士气 -4。`, "sys");
+    checkEnding(n);
+  });
+  /* ---------- 分拆与减持 ---------- */
+  const canSpin = (n, id) => { const t = n.tracks[id]; return t.pnl > 0 && t.share >= 45 && effOf(id, t) >= capOf(id, t) * 0.5; };
+  const spinoffCash = (n, id) => { const t = n.tracks[id]; return Math.max(0, Math.round(t.pnl * 4 * 8 * 0.4 * (1 + 0.35 * t.wave))); };
+  const doSpinoff = (id) => mut((n) => {
+    const def = defOf(id), t = n.tracks[id];
+    if (n.ap < 2 || !t.entered || !canSpin(n, id)) return;
+    n.ap -= 2;
+    const cashIn = spinoffCash(n, id);
+    const p = Math.round(t.pnl * 0.9);
+    n.cash += cashIn; n.rep = clamp(n.rep + 10, 0, 100);
+    n.subs.push({ tid: id, name: `${def.name}事业部`, profit: p, p0: p, stake: 0.6, lastDiv: Math.round(p * 0.6) });
+    Object.assign(t, { entered: false, rd: 0, mkt: 0, hc: 0, share: 0, pnl: 0, rout: 1, brk: 0 });
+    pushLog(n, `🔔 分拆上市!【${def.name}】独立挂牌:按8倍市盈率出售40%股份套现 ${fmt(cashIn)}${t.wave > 0.3 ? "(景气高位,卖出了溢价)" : t.wave < -0.3 ? "(寒冬贱卖,时机不佳)" : ""},保留60%坐收分红,声望 +10。此后它自负盈亏,利润随周期起伏、被竞争慢慢侵蚀。`, "g");
+    checkEnding(n);
+  });
+  const doSellDown = (idx) => mut((n) => {
+    const s = n.subs[idx];
+    if (n.ap < 1 || !s) return;
+    n.ap -= 1;
+    const sell = Math.min(0.2, s.stake);
+    const cashIn = Math.round(subMktCap(n, s) * sell);
+    n.cash += cashIn;
+    s.stake = Math.round((s.stake - sell) * 100) / 100;
+    if (s.stake <= 0.001) {
+      n.subs = n.subs.filter((x) => x !== s);
+      pushLog(n, `清仓离场:${s.name}持股全部减持完毕,最后一笔套现 ${fmt(cashIn)}。`, "sys");
+    } else {
+      pushLog(n, `减持${s.name} ${Math.round(sell * 100)}%股份,按当前市值套现 ${fmt(cashIn)}(剩余持股${Math.round(s.stake * 100)}%)。`, "sys");
+    }
+    checkEnding(n);
+  });
+  const doEndTurn = () => mut((n) => endTurn(n));
 
-  if (!g) return <div style={{ minHeight:"100vh", background:C.bg, color:C.txt, padding:"32px 16px", fontFamily:"system-ui, sans-serif" }}><div style={{ maxWidth:420, margin:"0 auto" }}><div style={{...mono,color:C.gold,fontSize:11,letterSpacing:4}}>TURN-BASED CEO SIMULATOR</div><h1 style={{fontSize:34,fontWeight:800,margin:"8px 0 4px",letterSpacing:2}}>画饼<span style={{color:C.up}}>与</span>剪枝</h1><p style={{ color:C.dim, fontSize:13, lineHeight:1.9 }}>你是CEO。{MAX_TURN} 个季度,把账上这点钱做成一家 <b style={{color:C.gold}}>估值10亿</b> 的上市公司。选赛道入局 → 研发/招人堆规模 → 规模换市占率 → 每季收租。三条死线:现金跌破0、声望归0、持股&lt;10%。</p>{ARCHETYPES.map(a=><div key={a.id} onClick={()=>setG(newGame(a))} style={{background:C.panel,border:`1px solid ${C.line}`,borderRadius:10,padding:14,marginBottom:10,cursor:"pointer"}}><div style={{fontSize:16,fontWeight:700}}>{a.icon} {a.name}</div><div style={{fontSize:12,color:C.dim,marginTop:4}}>{a.blurb}</div><div style={{...mono,fontSize:11,color:C.gold,marginTop:6}}>启动资金 {a.cash}万 · 初始声望 {a.rep}</div></div>)}</div></div>;
-  if (g.phase === "end") return <div style={{ minHeight:"100vh", background:C.bg, color:C.txt, padding:"48px 16px", fontFamily:"system-ui, sans-serif" }}><div style={{maxWidth:420,margin:"0 auto",textAlign:"center"}}><div style={{display:"inline-block",transform:"rotate(-8deg)",border:`3px solid ${g.ending.grade==="IPO"?C.up:C.dim}`,color:g.ending.grade==="IPO"?C.up:C.dim,borderRadius:8,padding:"10px 22px",fontSize:34,fontWeight:900,letterSpacing:6,marginBottom:20}}>{g.ending.grade}</div><h2>{g.ending.title}</h2><p style={{color:C.dim,lineHeight:1.8}}>{g.ending.desc}</p><div style={{...mono,background:C.panel,border:`1px solid ${C.line}`,borderRadius:10,padding:14,margin:"20px 0",fontSize:13,textAlign:"left",lineHeight:2}}>存续时间　{Math.min(g.turn,MAX_TURN)} 个季度<br/>最终估值　{fmt(g.val)}<br/>账上现金　{fmt(g.cash)}<br/>个人持股　{g.equity}%<br/>江湖声望　{g.rep}/100<br/>在营赛道　{enteredIds(g).map(id=>defOf(id).name).join("、")||"无"}</div><Btn accent full on={()=>setG(null)}>再开一局</Btn></div></div>;
+  /* ---------- 开局 ---------- */
+  if (!g) return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.txt, padding: "32px 16px", fontFamily: "system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 420, margin: "0 auto" }}>
+        <div style={{ ...mono, color: C.gold, fontSize: 11, letterSpacing: 4 }}>TURN-BASED CEO SIMULATOR</div>
+        <h1 style={{ fontSize: 34, fontWeight: 800, margin: "8px 0 4px", letterSpacing: 2 }}>画饼<span style={{ color: C.up }}>与</span>剪枝</h1>
+        <p style={{ color: C.dim, fontSize: 13, lineHeight: 1.9 }}>
+          你是CEO。{MAX_TURN} 个季度,把账上这点钱做成一家 <b style={{ color: C.gold }}>估值10亿</b> 的上市公司。<br />
+          一句话玩法:<b style={{ color: C.gold }}>选赛道入局 → 研发/招人堆规模 → 规模换市占率 → 每季收租</b>,看准周期低买高卖。<br />
+          三条死线:<b style={{ color: C.up }}>现金跌破0</b>(破产)、<b style={{ color: C.up }}>声望归0</b>(崩塌)、<b style={{ color: C.up }}>持股&lt;10%</b>(出局)。先开一局,前8季有🎓新手提示带路。
+        </p>
+        <details style={{ fontSize: 12, color: C.dim, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "8px 10px", margin: "10px 0", lineHeight: 1.9 }}>
+          <summary style={{ color: C.gold, cursor: "pointer", fontWeight: 700 }}>📖 详细规则(可跳过,边玩边学)</summary>
+          <div style={{ marginTop: 6 }}>
+            <span style={{ color: C.gold }}>规模</span> = 累计研发 + 累计营销 + 人力,边际递减、各行业天花板迥异;<br />
+            <span style={{ color: C.gold }}>每季投入</span> = 人力薪资 + 规模维持费,不管赚不赚钱都要付;<br />
+            <span style={{ color: C.gold }}>每季收益</span> = 行业盘子 × 市占率 × 质量 × 竞争 × <span style={{ color: C.up }}>周期</span>。<br />
+            市占率由你与对手的相对规模决定,份额过四成且持续盈利会把对手挤出市场——垄断由此可能;强周期行业(芯片/航空/地产)寒冬里收入可以塌到几乎为零,但对手也在出清、资产打七五折——逆周期重注,赌的是下一个🔥高景气。研发与人才铸<b style={{ color: C.gold }}>产品质量</b>,营销只买<b style={{ color: C.gold }}>触达</b>且渗透越高买量越贵;小赛道盈利且产品过硬时每季有小概率<b style={{ color: C.gold }}>🚀破界</b>(天花板×1.9、盘子×1.6,可二连)——新消费独角兽的剧本;重资产的规模本身就是资产,直接按账面计入估值并随周期定价;扩张靠砸钱招人,收缩靠裁员、裁撤项目、剪枝,各有代价。<br />
+            <b style={{ color: C.up }}>三条死线详情:</b>① 现金跌破0 → 破产清算(声望≥45可获唯一一次过桥贷款) ② 声望归0 → 信任崩塌 ③ 持股&lt;10% → 被资本逐出公司。<br />
+            🔔 敲钟条件:估值10亿 + 声望65 + 两条成熟业务线(份额≥45且盈利,含分拆子公司),或一条规模垄断线(份额≥75且规模≥85%天花板)。
+          </div>
+        </details>
+        <div style={{ ...mono, fontSize: 11, color: C.dim, margin: "10px 0 18px" }}>
+          行情提示:本盘面遵循A股惯例 —— <span style={{ color: C.up }}>红涨</span> / <span style={{ color: C.down }}>绿跌</span>
+        </div>
+        <div style={{ fontSize: 13, color: C.dim, marginBottom: 10 }}>选择你的出身:</div>
+        {ARCHETYPES.map((a) => (
+          <div key={a.id} onClick={() => setG(newGame(a))} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, marginBottom: 10, cursor: "pointer" }}>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{a.icon} {a.name}</div>
+            <div style={{ fontSize: 12, color: C.dim, marginTop: 4 }}>{a.blurb}</div>
+            <div style={{ ...mono, fontSize: 11, color: C.gold, marginTop: 6 }}>启动资金 {a.cash}万 · 初始声望 {a.rep}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
-  const entered=enteredIds(g), dVal=g.val-g.lastVal, valColor=dVal>0?C.up:dVal<0?C.down:C.dim;
-  return <div style={{ minHeight:"100vh", background:C.bg, color:C.txt, fontFamily:"system-ui, sans-serif", paddingBottom:86 }}><div style={{maxWidth:460,margin:"0 auto",padding:"0 12px"}}>
-    <div style={{position:"sticky",top:0,zIndex:10,background:C.bg,padding:"10px 0 8px",borderBottom:`1px solid ${C.line}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{...mono,fontSize:11,color:C.gold,letterSpacing:2}}>Q{String(g.turn).padStart(2,"0")}/{MAX_TURN}</span><span style={{...mono,fontSize:11,color:C.dim}}>行动点 {"●".repeat(g.ap)}{"○".repeat(Math.max(0,maxAP(g)-g.ap))}</span></div><div style={{display:"flex",alignItems:"baseline",gap:8,marginTop:2}}><span style={{fontSize:11,color:C.dim}}>估值</span><span style={{...mono,fontSize:26,fontWeight:800,color:valColor}}>{fmt(g.val)}</span><span style={{...mono,fontSize:12,color:valColor}}>{dVal===0?"—":(dVal>0?"▲+":"▼")+fmt(Math.abs(dVal))}</span><Spark data={g.hist.slice(-16).map(p=>p.val)} color={valColor}/></div><div style={{...mono,display:"flex",gap:12,fontSize:12,marginTop:4,color:C.dim,flexWrap:"wrap"}}><span>现金 <b style={{color:g.cash<500?C.up:C.txt}}>{fmt(g.cash)}</b></span><span>声望 <b style={{color:g.rep<25?C.up:C.txt}}>{g.rep}</b></span><span>士气 <b style={{color:g.morale<30?C.up:C.txt}}>{g.morale}</b></span><span>持股 <b style={{color:g.equity<30?C.up:C.txt}}>{g.equity}%</b></span>{g.hype>0&&<span>饼 <b style={{color:g.hype-avgMaturity(g)>30?C.up:C.gold}}>{g.hype}</b></span>}</div></div>
-    <div style={{margin:"12px 0 4px",fontSize:11,color:C.dim}}>CEO修炼:只花钱不占行动点,每季限一次</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>{Object.entries(STAT_META).map(([k,m])=><div key={k} style={{background:C.panel,border:`1px solid ${C.line}`,borderRadius:8,padding:"8px 10px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13,fontWeight:700}}>{m.icon} {m.name} <span style={{...mono,color:C.gold}}>{g.stats[k]}</span></span><Btn on={()=>doTrain(k)} disabled={g.trainedThisTurn||g.stats[k]>=10||g.cash<trainCost(g.stats[k])}>+1 ({trainCost(g.stats[k])}万)</Btn></div><div style={{fontSize:10,color:C.dim,marginTop:4}}>{m.tip}</div></div>)}</div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}><Btn full on={doRaise} disabled={g.ap<1||g.raiseLocked}>💰 融资<br/><span style={{fontWeight:400,fontSize:10}}>{g.raiseLocked?"本季窗口已关闭":`成功率 ${raiseRate(g)}%`}</span></Btn><Btn full on={doHype} disabled={g.ap<1}>🥧 画饼<br/><span style={{fontWeight:400,fontSize:10}}>声望/士气/预期+</span></Btn><Btn full on={doInsight} disabled={g.ap<1||!entered.length}>🔭 洞察市场<br/><span style={{fontWeight:400,fontSize:10}}>研发加成</span></Btn></div>
-    <div style={{margin:"16px 0 6px",fontSize:13,fontWeight:700,color:C.dim}}>在营赛道 {entered.length}/{maxTracks(g)}</div>{!entered.length&&<div style={{color:C.dim,fontSize:12,background:C.panel,border:`1px solid ${C.line}`,borderRadius:8,padding:12}}>还没有进入任何赛道。从下方选一条入局。</div>}
-    {entered.map(id=>{ const def=defOf(id),t=g.tracks[id],E=effOf(id,t),zone=zoneOf(t.wave),tranche=trancheOf(id); return <div key={id} style={{background:C.panel,border:`1px solid ${t.pnl< -200?C.up:t.wave>=.5?C.gold:C.line}`,borderRadius:10,padding:12,marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:15,fontWeight:700}}>{def.icon} {def.name}<span style={{fontSize:10,color:t.wave>=.15?C.gold:t.wave<=-.15?"#6FA8DC":C.dim,marginLeft:6,border:`1px solid ${C.line}`,borderRadius:4,padding:"1px 4px"}}>{zone.icon}{zone.txt} ×{cycMulOf(id,t).toFixed(2)}</span></span><span style={{...mono,fontSize:11,color:C.dim}}>人力 {"★".repeat(t.hc)}{"☆".repeat(MAX_HC-t.hc)}</span></div><div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 4px"}}><span style={{fontSize:11,color:C.dim,whiteSpace:"nowrap"}}>有效规模 <b style={{color:C.txt}}>{fmt(E)}</b>/{fmt(capOf(id,t))}</span><div style={{flex:1}}><Bar v={E/capOf(id,t)*100} color={C.gold}/></div></div><div style={{display:"flex",alignItems:"center",gap:8,margin:"0 0 4px"}}><span style={{fontSize:11,color:C.dim,whiteSpace:"nowrap"}}>市占率 <b style={{color:C.txt}}>{Math.round(t.share)}%</b> → {Math.round(shareTarget(g,id,t))}%</span><div style={{flex:1}}><Bar v={t.share} color="#5B8DEF"/></div></div><div style={{...mono,fontSize:10,marginBottom:4}}><span style={{color:t.pnl>=0?C.up:C.down}}>上季净{t.pnl>=0?"利 +":"亏 "}{t.pnl}万</span><span style={{color:C.dim}}> 收入≈{Math.round(revOf(g,id,t))} − 维持{Math.round(costOf(g,id,t))}</span></div><div style={{...mono,fontSize:10,color:C.dim,display:"flex",gap:10,flexWrap:"wrap"}}><span style={{color:C.gold}}>{bandOf(id).tag}</span><span>质量 ×{qualOf(id,t).toFixed(2)}</span><span>融资 {t.fund}</span><span>竞争 {t.comp}</span><span>招聘 {t.hire}</span><span>协同 {synCount(g,id)} / 拖累 {dragCount(g,id)}</span></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginTop:8}}><Btn on={()=>doRnD(id)} disabled={g.ap<1||g.cash<Math.round(tranche*troughMul(t))}>🔬 研发<br/><span style={{fontWeight:400,fontSize:10}}>{Math.round(tranche*troughMul(t))}万</span></Btn><Btn on={()=>doMkt(id)} disabled={g.ap<1||g.cash<Math.round(tranche*.8*troughMul(t))}>📣 营销<br/><span style={{fontWeight:400,fontSize:10}}>份额+{mktGain(g,id)}</span></Btn><Btn on={()=>doHire(id)} disabled={g.ap<1||g.cash<100||t.hc>=MAX_HC}>🧑‍💻 招聘<br/><span style={{fontWeight:400,fontSize:10}}>{hireRate(g,id)}%</span></Btn><Btn on={()=>doPrune(id)} disabled={g.ap<1}>✂️ 剪枝</Btn></div></div> })}
-    <div style={{margin:"16px 0 6px",fontSize:13,fontWeight:700,color:C.dim}}>赛道大盘 <span style={{fontWeight:400,fontSize:11}}>(🧊寒冬赛道投入折扣)</span></div>{[...new Set(TRACKS.map(t=>t.cat))].map(cat=>{ const list=TRACKS.filter(t=>t.cat===cat&&!g.tracks[t.id].entered); if(!list.length)return null; return <div key={cat}><div style={{...mono,fontSize:10,color:C.gold,letterSpacing:3,margin:"10px 0 6px",borderLeft:`2px solid ${C.gold}`,paddingLeft:6}}>{cat} <span style={{color:C.dim}}>· {BAND[cat].tag} · {BAND[cat].note}</span></div>{list.map(def=>{ const t=g.tracks[def.id],zone=zoneOf(t.wave),fee=Math.round(def.fee*(t.wave<-.3?.85:1)),blocked=g.ap<1||g.cash<fee||g.rep<def.repReq||entered.length>=maxTracks(g); return <div key={def.id} style={{background:C.panel2,border:`1px solid ${C.line}`,borderRadius:8,padding:"10px 12px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}><div style={{minWidth:0}}><div style={{fontSize:13,fontWeight:700}}>{def.icon} {def.name} <span style={{fontSize:10,color:t.wave>=.15?C.gold:t.wave<=-.15?"#6FA8DC":C.dim}}>{zone.icon}{zone.txt}</span>{BLACKSWAN[def.id]&&<span style={{fontSize:10,color:C.up,marginLeft:6}}>🦢{(BLACKSWAN[def.id]*100).toFixed(1)}%/季</span>}</div><div style={{fontSize:10,color:C.dim,marginTop:2}}>{def.desc}</div><div style={{...mono,fontSize:10,color:C.dim,marginTop:2}}>盘子{fmt(mktSizeOf(def.id,t))}/季 天花板{fmt(capOf(def.id,t))} 对手{fmt(ECON[def.id].M0)}{def.repReq>0&&<span style={{color:g.rep>=def.repReq?C.dim:C.up}}> · 需声望{def.repReq}</span>}</div></div><Btn on={()=>doEnter(def.id)} disabled={blocked}>入局<br/><span style={{fontWeight:400,fontSize:10}}>{fee}万</span></Btn></div>})}</div>})}
-    <div style={{margin:"16px 0 6px",fontSize:13,fontWeight:700,color:C.dim}}>董事会简报</div><div style={{...mono,background:C.panel2,border:`1px solid ${C.line}`,borderRadius:8,padding:"8px 10px",fontSize:11,lineHeight:1.9,maxHeight:260,overflowY:"auto"}}>{g.log.map((l,i)=><div key={i} style={{color:l.type==="g"?C.down:l.type==="b"?C.up:l.type==="sys"?C.gold:l.type==="sum"?"#5B8DEF":C.dim,borderTop:l.type==="sum"?`1px dashed ${C.line}`:undefined,marginTop:l.type==="sum"?2:undefined,paddingTop:l.type==="sum"?2:undefined}}><span style={{color:C.dim}}>Q{String(l.t).padStart(2,"0")}</span> {l.txt}</div>)}</div>
-  </div><div style={{position:"fixed",left:0,right:0,bottom:0,background:"rgba(11,16,32,.95)",borderTop:`1px solid ${C.line}`,padding:"10px 12px"}}><div style={{maxWidth:460,margin:"0 auto",display:"flex",gap:10,alignItems:"center"}}><span style={{...mono,fontSize:12,color:C.dim,whiteSpace:"nowrap"}}>剩余行动 {g.ap}</span><div style={{flex:1}}><Btn accent full on={doEndTurn}>结束本季度 → 结算经营与随机事件</Btn></div></div></div></div>;
+  /* ---------- 结局 ---------- */
+  if (g.phase === "end") {
+    const win = g.ending.grade === "IPO" || g.ending.grade === "S";
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.txt, padding: "48px 16px", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
+          <div style={{
+            display: "inline-block", transform: "rotate(-8deg)", border: `3px solid ${win ? C.up : C.dim}`,
+            color: win ? C.up : C.dim, borderRadius: 8, padding: "10px 22px", fontSize: 34, fontWeight: 900,
+            letterSpacing: 6, marginBottom: 20, opacity: 0.92,
+          }}>{g.ending.grade}</div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 10px" }}>{g.ending.title}</h2>
+          <p style={{ color: C.dim, fontSize: 14, lineHeight: 1.8 }}>{g.ending.desc}</p>
+          <div style={{ ...mono, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, margin: "20px 0", fontSize: 13, textAlign: "left", lineHeight: 2 }}>
+            存续时间　{Math.min(g.turn, MAX_TURN)} 个季度<br />
+            最终估值　{fmt(g.val)}<br />
+            账上现金　{fmt(g.cash)}<br />
+            个人持股　{g.equity}%<br />
+            江湖声望　{g.rep}/100<br />
+            在营赛道　{enteredIds(g).map((id) => defOf(id).name).join("、") || "无"}<br />
+            分拆子司　{g.subs.length ? g.subs.map((s) => s.name).join("、") : "无"}
+          </div>
+          {g.hist.length >= 2 && (
+            <div style={{ textAlign: "left" }}>
+              <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 4 }}>公司估值曲线</div>
+                <LineChart series={[{ name: "估值", color: C.gold, data: g.hist.map((p) => p.val) }]} fmtFn={fmt} />
+              </div>
+              <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#5B8DEF", marginBottom: 4 }}>现金流曲线</div>
+                <LineChart series={[{ name: "现金", color: "#5B8DEF", data: g.hist.map((p) => p.cash) }]} fmtFn={fmt} h={100} />
+              </div>
+              <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.dim, marginBottom: 4 }}>声望 × 士气</div>
+                <LineChart series={[
+                  { name: "声望", color: C.up, data: g.hist.map((p) => p.rep) },
+                  { name: "士气", color: C.down, data: g.hist.map((p) => p.morale), dash: "4 3" },
+                ]} h={100} />
+              </div>
+            </div>
+          )}
+          <Btn accent full on={() => setG(null)}>再开一局</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- 主界面 ---------- */
+  const dVal = g.val - g.lastVal;
+  const valColor = dVal > 0 ? C.up : dVal < 0 ? C.down : C.dim;
+  const entered = enteredIds(g);
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.txt, fontFamily: "system-ui, sans-serif", paddingBottom: 86 }}>
+      <div style={{ maxWidth: 460, margin: "0 auto", padding: "0 12px" }}>
+
+        {/* 顶部状态 */}
+        <div style={{ position: "sticky", top: 0, zIndex: 10, background: C.bg, padding: "10px 0 8px", borderBottom: `1px solid ${C.line}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ ...mono, fontSize: 11, color: C.gold, letterSpacing: 2 }}>Q{String(g.turn).padStart(2, "0")}/{MAX_TURN}</span>
+            <span style={{ ...mono, fontSize: 11, color: C.dim }}>行动点 {"●".repeat(g.ap)}{"○".repeat(Math.max(0, maxAP(g) - g.ap))}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
+            <span style={{ fontSize: 11, color: C.dim }}>估值</span>
+            <span style={{ ...mono, fontSize: 26, fontWeight: 800, color: valColor }}>{fmt(g.val)}</span>
+            <span style={{ ...mono, fontSize: 12, color: valColor }}>{dVal === 0 ? "—" : (dVal > 0 ? "▲+" : "▼") + fmt(Math.abs(dVal))}</span>
+            <Spark data={g.hist.slice(-16).map((p) => p.val)} color={valColor} />
+          </div>
+          <div style={{ ...mono, display: "flex", gap: 12, fontSize: 12, marginTop: 4, color: C.dim, flexWrap: "wrap" }}>
+            <span>现金 <b style={{ color: g.cash < 500 ? C.up : C.txt }}>{fmt(g.cash)}</b></span>
+            <span>声望 <b style={{ color: g.rep < 25 ? C.up : C.txt }}>{g.rep}</b></span>
+            <span>士气 <b style={{ color: g.morale < 30 ? C.up : g.morale >= 75 ? C.down : C.txt }}>{g.morale}</b></span>
+            <span>持股 <b style={{ color: g.equity < 30 ? C.up : C.txt }}>{g.equity}%</b></span>
+            {g.hype > 0 && <span>饼 <b style={{ color: g.hype - avgMaturity(g) > 30 ? C.up : C.gold }}>{g.hype}</b></span>}
+          </div>
+        </div>
+
+        {/* 敲钟进度 */}
+        {(() => {
+          const lines = entered.filter((id) => isMatureLine(g, id)).length + g.subs.length;
+          const king = entered.some((id) => { const t = g.tracks[id]; return t.share >= 75 && effOf(id, t) >= capOf(id, t) * 0.85; });
+          const conds = [
+            { ok: g.val >= 100000, txt: `估值 ${fmt(g.val)}/10亿` },
+            { ok: g.rep >= 65, txt: `声望 ${g.rep}/65` },
+            { ok: lines >= 2 || king, txt: king ? `垄断业务线 ✓` : `成熟线 ${lines}/2 或垄断线(份额75+规模85%)` },
+          ];
+          return (
+            <div style={{ ...mono, display: "flex", gap: 12, fontSize: 10, marginTop: 6, color: C.dim, flexWrap: "wrap" }}>
+              <span style={{ color: C.gold }}>🔔 敲钟条件</span>
+              {conds.map((c, i) => <span key={i} style={{ color: c.ok ? C.down : C.dim }}>{c.ok ? "✓" : "○"} {c.txt}</span>)}
+            </div>
+          );
+        })()}
+
+        {/* 死线预警 */}
+        {(() => {
+          const warns = [];
+          if (g.rep <= 20) warns.push(`声望 ${g.rep}/100 —— 归0即「信任崩塌」直接出局`);
+          if (g.cash < 800) warns.push(`现金 ${fmt(g.cash)} —— 跌破0即破产${g.bridgeUsed ? "(过桥贷款已用尽)" : "(声望≥45可获一次过桥贷款)"}`);
+          if (g.equity < 25) warns.push(`持股 ${g.equity}% —— 跌破10%将被资本逐出公司`);
+          if (g.morale < 30) warns.push(`士气 ${g.morale}/100 —— 低于30人才持续流失,低于15团队塌方`);
+          const heavy = entered.filter((id) => g.tracks[id].pnl < -300);
+          if (heavy.length) warns.push(`持续重亏:${heavy.map((id) => `${defOf(id).name}(${g.tracks[id].pnl}万/季)`).join("、")} —— 裁员裁撤止血,或扛着等周期`);
+          return warns.length ? (
+            <div style={{ background: "rgba(229,72,77,.08)", border: `1px solid ${C.up}`, borderRadius: 8, padding: "8px 12px", marginTop: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.up, marginBottom: 2 }}>⚠️ 死线预警</div>
+              {warns.map((w, i) => <div key={i} style={{ ...mono, fontSize: 11, color: C.up, lineHeight: 1.8 }}>{w}</div>)}
+            </div>
+          ) : null;
+        })()}
+
+        {/* 季度小结 */}
+        {g.lastSummary && (
+          <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.gold}`, borderRadius: 8, padding: "8px 12px", marginTop: 10 }}>
+            <div style={{ ...mono, fontSize: 10, color: C.gold, letterSpacing: 2, marginBottom: 4 }}>Q{String(g.lastSummary.t).padStart(2, "0")} 季度小结 · 利好×{g.lastSummary.goods} 利空×{g.lastSummary.bads}</div>
+            <div style={{ ...mono, display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap" }}>
+              {[["估值", g.lastSummary.dVal, fmt], ["现金", g.lastSummary.dCash, fmt], ["声望", g.lastSummary.dRep, (v) => v], ["士气", g.lastSummary.dMorale, (v) => v]].map(([k, v, f]) => (
+                <span key={k} style={{ color: C.dim }}>{k} <b style={{ color: v > 0 ? C.up : v < 0 ? C.down : C.dim }}>{v > 0 ? "+" : ""}{f(v)}</b></span>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>本季头条:{g.lastSummary.headline}</div>
+          </div>
+        )}
+
+        {/* 新手提示 */}
+        {g.turn <= 8 && (() => {
+          const tip = !entered.length
+            ? "第一步:去下方「赛道大盘」选一条入局。新手推荐 💼企业SaaS(便宜稳健)或 🥤瓶装饮料(回本快);标着🧊寒冬的赛道门票还打85折。"
+            : g.cash < 600 && !g.raiseLocked
+            ? "现金吃紧!点 💰融资 稀释12%股权换弹药;声望越高越容易成,🥧画饼 可以攒声望和士气。"
+            : entered.some((id) => g.tracks[id].hc < 2)
+            ? "先 🧑‍💻招聘 1-2 位人才:人既是规模也是产能。然后 🔬研发 把规模堆起来——规模决定市占率的走向。"
+            : entered.some((id) => effOf(id, g.tracks[id]) < capOf(id, g.tracks[id]) * 0.6)
+            ? "持续 🔬研发:「有效规模」是核心进度条,推到80%天花板前每一笔投入都高效,市占率会自己追上来。盯紧上季净利,亏损是爬坡的学费。"
+            : "规模快摸顶了:转 📣营销 买份额、等周期🔥高景气收割,或把利润投向第二条赛道。每季结束记得看「季度小结」复盘。";
+          return <div style={{ background: "rgba(227,179,65,.07)", border: `1px dashed ${C.gold}`, borderRadius: 8, padding: "8px 12px", marginTop: 10, fontSize: 12, color: C.gold, lineHeight: 1.7 }}>🎓 新手提示(仅前8季显示):{tip}</div>;
+        })()}
+
+        {/* CEO 能力 */}
+        <div style={{ margin: "12px 0 4px", fontSize: 11, color: C.dim }}>CEO修炼:只花钱不占行动点,每季限一次</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {Object.entries(STAT_META).map(([k, m]) => (
+            <div key={k} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{m.icon} {m.name} <span style={{ ...mono, color: C.gold }}>{g.stats[k]}</span></span>
+                <Btn on={() => doTrain(k)} disabled={g.trainedThisTurn || g.stats[k] >= 10 || g.cash < trainCost(g.stats[k])}>
+                  {g.trainedThisTurn ? "本季已修炼" : `+1 (${trainCost(g.stats[k])}万)`}
+                </Btn>
+              </div>
+              <div style={{ fontSize: 10, color: C.dim, marginTop: 4 }}>{m.tip}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* CEO 行动 */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <Btn full on={doRaise} disabled={g.ap < 1 || g.raiseLocked}>💰 融资<br /><span style={{ fontWeight: 400, fontSize: 10 }}>{g.raiseLocked ? "本季窗口已关闭" : `成功率 ${raiseRate(g)}%${g.raisePity ? `(含补偿+${g.raisePity}%)` : ""}`}</span></Btn>
+          <Btn full on={doHype} disabled={g.ap < 1}>🥧 画饼<br /><span style={{ fontWeight: 400, fontSize: 10 }}>声望+{5 + g.stats.cha} 士气+{6 + Math.floor(g.stats.cha / 2)} 预期+{10 + g.stats.cha * 2}</span></Btn>
+          <Btn full on={doInsight} disabled={g.ap < 1 || !entered.length}>🔭 洞察市场<br /><span style={{ fontWeight: 400, fontSize: 10 }}>预判事件与周期+研发加成</span></Btn>
+        </div>
+
+        {/* 洞察预报 */}
+        {g.forecast && (
+          <div style={{ background: C.panel2, border: `1px dashed ${C.gold}`, borderRadius: 8, padding: "8px 12px", marginTop: 10, fontSize: 12 }}>
+            <div style={{ color: C.gold, fontWeight: 700, marginBottom: 4 }}>🔭 下季度情报</div>
+            {g.forecast.map((f) => {
+              const def = defOf(f.id);
+              return <div key={f.id} style={{ color: f.ev ? (f.ev.t === "b" ? C.up : C.down) : C.dim, lineHeight: 1.8 }}>
+                {def.name}:{f.ev ? `「${f.ev.n}」${f.ev.t === "b" ? "(利空,可提前应对)" : "(利好)"}` : "事件面风平浪静"} · {f.trend}
+              </div>;
+            })}
+          </div>
+        )}
+
+        {/* 在营赛道 */}
+        <div style={{ margin: "16px 0 6px", fontSize: 13, fontWeight: 700, color: C.dim }}>在营赛道 {entered.length}/{maxTracks(g)} <span style={{ fontWeight: 400, fontSize: 11 }}>(容量由管理决定)</span></div>
+        {!entered.length && <div style={{ color: C.dim, fontSize: 12, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: 12 }}>还没有进入任何赛道。公司没有业务,估值只是空气——从下方选一条入局。</div>}
+        {entered.map((id) => {
+          const def = defOf(id), t = g.tracks[id], e = { cap: capOf(id, t), mkt: mktSizeOf(id, t) };
+          const E = effOf(id, t), S = scaleOf(t);
+          const zone = zoneOf(t.wave), cycMul = cycMulOf(id, t);
+          const target = shareTarget(g, id, t);
+          const syn = synCount(g, id), drag = dragCount(g, id);
+          const synNames = SYN.filter((p) => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).map((p) => defOf(p.find((q) => q !== id)).name);
+          const dragNames = DRAG.filter((p) => p.includes(id) && g.tracks[p[0]].entered && g.tracks[p[1]].entered).map((p) => defOf(p.find((q) => q !== id)).name);
+          const tranche = trancheOf(id), tm = troughMul(t);
+          const wage = wageOf(t);
+          const cut = Math.max(1, Math.ceil(t.hc * 0.3));
+          return (
+            <div key={id} style={{ background: C.panel, border: `1px solid ${t.pnl < -200 ? C.up : t.wave >= 0.5 ? C.gold : C.line}`, borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>{def.icon} {def.name}
+                  <span style={{ fontSize: 10, color: t.wave >= 0.15 ? C.gold : t.wave <= -0.15 ? "#6FA8DC" : C.dim, marginLeft: 6, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>{zone.icon}{zone.txt} ×{cycMul.toFixed(2)}</span>
+                  {t.brk > 0 && <span style={{ fontSize: 10, color: C.gold, marginLeft: 6, border: `1px solid ${C.gold}`, borderRadius: 4, padding: "1px 4px" }}>🚀破界×{t.brk}</span>}{BLACKSWAN[id] && <span style={{ fontSize: 10, color: C.up, marginLeft: 6 }}>🦢{(BLACKSWAN[id].p * 100).toFixed(1)}%</span>}
+                </span>
+                <span style={{ ...mono, fontSize: 11, color: C.dim }}>人力 {"★".repeat(t.hc)}{"☆".repeat(MAX_HC - t.hc)}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "8px 0 4px" }}>
+                <span style={{ fontSize: 11, color: C.dim, whiteSpace: "nowrap" }}>有效规模 <b style={{ color: C.txt }}>{fmt(E)}</b>/{fmt(e.cap)}{E > e.cap * 0.85 && <span style={{ color: C.up }}> 近天花板</span>}</span>
+                <div style={{ flex: 1 }}><Bar v={E / e.cap * 100} color={E > e.cap * 0.85 ? C.up : C.gold} /></div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px" }}>
+                <span style={{ fontSize: 11, color: C.dim, whiteSpace: "nowrap" }}>市占率 <b style={{ color: C.txt }}>{Math.round(t.share)}%</b> → 趋向{Math.round(target)}%</span>
+                <div style={{ flex: 1 }}><Bar v={t.share} color="#5B8DEF" /></div>
+              </div>
+              <div style={{ ...mono, fontSize: 10, marginBottom: 4 }}>
+                <span style={{ color: t.pnl >= 0 ? C.up : C.down }}>上季净{t.pnl >= 0 ? "利 +" : "亏 "}{t.pnl}万</span>
+                <span style={{ color: C.dim }}>(收入≈{Math.round(revOf(g, id, t))} − 维持{Math.round(costOf(g, id, t))}:薪资{t.hc * wage}+规模费{Math.round(S * bandOf(id).opex * (1 - g.stats.mgr * 0.02))})</span>
+              </div>
+              <div style={{ ...mono, fontSize: 10, color: C.dim, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: C.gold }}>{bandOf(id).tag}</span>
+                <span>质量 ×{qualOf(id, t).toFixed(2)}</span>
+                <span>融资环境 <b style={{ color: envColor(t.fund) }}>{t.fund}</b></span>
+                <span>竞争 <b style={{ color: envColor(t.comp, true) }}>{t.comp}</b></span>
+                <span>招聘难度 <b style={{ color: envColor(t.hire, true) }}>{t.hire}</b></span>
+                <span>对手规模 {fmt(rivalOf(g, id, t))}{t.rout < 0.97 && <b style={{ color: C.gold }}>(已出清{Math.round((1 - t.rout) * 100)}%)</b>}</span>
+              </div>
+              {(syn > 0 || drag > 0) && (
+                <div style={{ fontSize: 10, marginTop: 4 }}>
+                  {syn > 0 && <span style={{ color: C.down }}>⇈ 协同:{synNames.join("、")} </span>}
+                  {drag > 0 && <span style={{ color: C.up }}>⇊ 拖累:{dragNames.join("、")}</span>}
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
+                <Btn on={() => doRnD(id)} disabled={g.ap < 1 || g.cash < Math.round(tranche * tm)}>🔬 研发<br /><span style={{ fontWeight: 400, fontSize: 10 }}>{Math.round(tranche * tm)}万{tm < 1 ? "(75折)" : ""} 规模+{Math.round(tranche * (g.insightBuff ? 1.5 : 1))}{g.insightBuff ? "⚡" : ""}</span></Btn>
+                <Btn on={() => doMkt(id)} disabled={g.ap < 1 || g.cash < Math.round(tranche * 0.8 * tm)}>📣 营销<br /><span style={{ fontWeight: 400, fontSize: 10 }}>{Math.round(tranche * 0.8 * tm)}万 份额+{mktGain(g, id)}</span></Btn>
+                <Btn on={() => doHire(id)} disabled={g.ap < 1 || g.cash < 100 || t.hc >= MAX_HC}>🧑‍💻 招聘 {hireRate(g, id)}%<br /><span style={{ fontWeight: 400, fontSize: 10 }}>100万 薪资{wage}/季</span></Btn>
+                <Btn on={() => doLayoff(id)} disabled={g.ap < 1 || t.hc < 1 || g.cash < Math.round(cut * wage * (1 - g.stats.dec * 0.04))}>📉 裁员{t.hc ? ` ${cut}人` : ""}<br /><span style={{ fontWeight: 400, fontSize: 10 }}>遣散{Math.round(cut * wage * (1 - g.stats.dec * 0.04))}万 省{cut * wage}/季</span></Btn>
+                <Btn on={() => doCutProj(id)} disabled={g.ap < 1 || t.rd + t.mkt < 200}>🪓 裁撤项目<br /><span style={{ fontWeight: 400, fontSize: 10 }}>规模-25% 回收{Math.round((t.rd + t.mkt) * 0.25 * (0.1 + g.stats.dec * 0.02))}万</span></Btn>
+                <Btn on={() => doPrune(id)} disabled={g.ap < 1}>✂️ 剪枝<br /><span style={{ fontWeight: 400, fontSize: 10 }}>整体退出 回收{pruneRefund(g, id)}万</span></Btn>
+              </div>
+              {canSpin(g, id) && (
+                <div style={{ marginTop: 6 }}>
+                  <Btn accent full on={() => doSpinoff(id)} disabled={g.ap < 2}>
+                    🔔 分拆上市(2行动点):按8倍PE出售40%套现 {fmt(spinoffCash(g, id))}{t.wave > 0.3 ? "(景气溢价中,好时机)" : t.wave < -0.3 ? "(寒冬折价,建议再等等)" : ""},保留60%坐收分红
+                  </Btn>
+                </div>
+              )}
+              {!canSpin(g, id) && t.share >= 30 && (
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>距离分拆上市:份额 {Math.round(t.share)}/45 · 规模 {Math.round(E / e.cap * 100)}%/50% · {t.pnl > 0 ? "已盈利 ✓" : "需扭亏为盈"}</div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* 子公司持仓 */}
+        {g.subs.length > 0 && (
+          <div style={{ background: C.panel2, border: `1px solid ${C.gold}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 6 }}>🏛️ 子公司持仓(利润随周期波动、被竞争侵蚀;🦢黑天鹅可令股价一夜归零)</div>
+            {g.subs.map((s, i) => {
+              const w = g.tracks[s.tid].wave, z = zoneOf(w);
+              return (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "4px 0", borderTop: i ? `1px solid ${C.line}` : "none" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{s.name} <span style={{ ...mono, color: C.gold, fontSize: 11 }}>持股{Math.round(s.stake * 100)}%</span> <span style={{ fontSize: 10, color: C.dim }}>{z.icon}{z.txt}</span>{BLACKSWAN[s.tid] && <span style={{ fontSize: 10, color: C.up, marginLeft: 4 }}>🦢{(BLACKSWAN[s.tid].p * 100).toFixed(1)}%</span>}</div>
+                  <div style={{ ...mono, fontSize: 10, color: C.dim }}>
+                    季利润 <b style={{ color: s.profit < s.p0 * 0.4 ? C.up : C.txt }}>{s.profit}万</b> · 上季分红 <b style={{ color: C.txt }}>{s.lastDiv}万</b> · 市值 {fmt(subMktCap(g, s))}{w > 0.3 ? "(景气溢价)" : w < -0.3 ? "(寒冬折价)" : ""}
+                  </div>
+                </div>
+                <Btn on={() => doSellDown(i)} disabled={g.ap < 1}>📉 减持20%<br /><span style={{ fontWeight: 400, fontSize: 10 }}>套现{fmt(Math.round(subMktCap(g, s) * Math.min(0.2, s.stake)))}</span></Btn>
+              </div>
+            );})}
+          </div>
+        )}
+
+        {/* 赛道大盘 */}
+        <div style={{ margin: "16px 0 6px", fontSize: 13, fontWeight: 700, color: C.dim }}>赛道大盘 <span style={{ fontWeight: 400, fontSize: 11 }}>(🧊寒冬赛道:入场门票85折,研发/营销投入75折)</span></div>
+        {[...new Set(TRACKS.map((t) => t.cat))].map((cat) => {
+          const list = TRACKS.filter((t) => t.cat === cat && !g.tracks[t.id].entered);
+          if (!list.length) return null;
+          return (
+            <div key={cat}>
+              <div style={{ ...mono, fontSize: 10, color: C.gold, letterSpacing: 3, margin: "10px 0 6px", borderLeft: `2px solid ${C.gold}`, paddingLeft: 6 }}>{cat} <span style={{ color: C.dim }}>· {BAND[cat].tag} · {BAND[cat].note}</span></div>
+              {list.map((def) => {
+          const t = g.tracks[def.id], e = { cap: capOf(def.id, t), mkt: mktSizeOf(def.id, t) };
+          const zone = zoneOf(t.wave);
+          const fee = enterFee(g, def.id);
+          const partners = SYN.filter((p) => p.includes(def.id) && p.some((q) => q !== def.id && g.tracks[q].entered)).map((p) => defOf(p.find((q) => q !== def.id)).name);
+          const foes = DRAG.filter((p) => p.includes(def.id) && p.some((q) => q !== def.id && g.tracks[q].entered)).map((p) => defOf(p.find((q) => q !== def.id)).name);
+          const blocked = g.ap < 1 || g.cash < fee || g.rep < def.repReq || entered.length >= maxTracks(g);
+          return (
+            <div key={def.id} style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{def.icon} {def.name} <span style={{ fontSize: 10, color: t.wave >= 0.15 ? C.gold : t.wave <= -0.15 ? "#6FA8DC" : C.dim }}>{zone.icon}{zone.txt}</span>{BLACKSWAN[def.id] && <span style={{ fontSize: 10, color: C.up, marginLeft: 6 }}>🦢{(BLACKSWAN[def.id].p * 100).toFixed(1)}%/季</span>}</div>
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{def.desc}</div>
+                <div style={{ ...mono, fontSize: 10, color: C.dim, marginTop: 2 }}>
+                  盘子{fmt(e.mkt)}/季 天花板{fmt(e.cap)}{BREAKABLE(def.id) && <span style={{ color: C.gold }}>·可破界</span>} 对手{fmt(ECON[def.id].M0)} 周期±{Math.round(ECON[def.id].amp * 100)}%{def.repReq > 0 && <span style={{ color: g.rep >= def.repReq ? C.dim : C.up }}> · 需声望{def.repReq}</span>}
+                </div>
+                {(partners.length > 0 || foes.length > 0) && (
+                  <div style={{ fontSize: 10, marginTop: 2 }}>
+                    {partners.length > 0 && <span style={{ color: C.down }}>与{partners.join("、")}协同 </span>}
+                    {foes.length > 0 && <span style={{ color: C.up }}>与{foes.join("、")}相斥</span>}
+                  </div>
+                )}
+              </div>
+              <Btn on={() => doEnter(def.id)} disabled={blocked}>入局<br /><span style={{ fontWeight: 400, fontSize: 10 }}>{fee}万{fee < def.fee ? "🧊折" : ""}</span></Btn>
+            </div>
+          );
+              })}
+            </div>
+          );
+        })}
+
+        {/* 董事会简报 */}
+        <div style={{ margin: "16px 0 6px", fontSize: 13, fontWeight: 700, color: C.dim }}>董事会简报</div>
+        <div style={{ ...mono, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.9, maxHeight: 260, overflowY: "auto" }}>
+          {g.log.map((l, i) => (
+            <div key={i} style={{ color: l.type === "g" ? C.down : l.type === "b" ? C.up : l.type === "sys" ? C.gold : l.type === "sum" ? "#5B8DEF" : C.dim, ...(l.type === "sum" ? { borderTop: `1px dashed ${C.line}`, marginTop: 2, paddingTop: 2 } : {}) }}>
+              <span style={{ color: C.dim }}>Q{String(l.t).padStart(2, "0")}</span> {l.txt}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 底部结束回合 */}
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, background: "rgba(11,16,32,.95)", borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
+        <div style={{ maxWidth: 460, margin: "0 auto", display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ ...mono, fontSize: 12, color: C.dim, whiteSpace: "nowrap" }}>剩余行动 {g.ap}</span>
+          <div style={{ flex: 1 }}>
+            <Btn accent full on={doEndTurn}>结束本季度 → 结算经营与随机事件</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<CEOSim />);
+
 </script>
 </body>
 </html>
